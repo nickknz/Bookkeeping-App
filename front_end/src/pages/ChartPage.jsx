@@ -1,11 +1,13 @@
 import { useMemo } from "react";
+import { useOutletContext } from "react-router-dom";
 import { PieChart, Pie, Cell } from "recharts";
 import { getCategoryById } from "../data/categories";
 import CategoryIcon from "../components/CategoryIcon";
 
 const CHART_COLORS = ["#FA6400", "#3491FA", "#F54A45", "#36C361", "#B37FEB", "#FAAD14", "#EB2F96", "#13C2C2", "#FF7D00", "#8C8C8C"];
 
-export default function ChartPage({ transactions }) {
+export default function ChartPage() {
+  const { transactions } = useOutletContext();
   const month = "2026-03";
   const monthExpense = transactions.filter((t) => t.date.startsWith(month) && t.type === "expense");
   const total = monthExpense.reduce((s, t) => s + t.amount, 0);

@@ -1,7 +1,9 @@
+import { useOutletContext } from "react-router-dom";
 import TransactionItem from "../components/TransactionItem";
 import { formatDateLabel, getWeekday, groupTransactionsByDate } from "../data/dateUtils";
 
-export default function HomePage({ transactions }) {
+export default function HomePage() {
+  const { transactions } = useOutletContext();
   const month = "2026-03";
   const monthTxs = transactions.filter((t) => t.date.startsWith(month));
   const totalExpense = monthTxs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
