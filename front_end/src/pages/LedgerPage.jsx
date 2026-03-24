@@ -6,84 +6,38 @@ export default function LedgerPage() {
   ];
 
   return (
-    <div>
-      {/* Header */}
-      <div
-        style={{
-          background: "#fff",
-          padding: "14px 20px 16px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <span style={{ fontSize: 17, fontWeight: 700, color: "#1F2937" }}>账本</span>
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#9CA3AF"
-          strokeWidth="2"
-          strokeLinecap="round"
-          style={{ cursor: "pointer" }}
-        >
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
+    <div className="p-8">
+      <div className="flex items-center justify-between mb-6">
+        <span className="text-xl font-bold text-gray-800">账本</span>
+        <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm text-gray-600 cursor-pointer hover:bg-gray-50 transition-colors">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          新建账本
+        </button>
       </div>
 
-      {/* Book list */}
-      <div style={{ padding: "4px 14px" }}>
+      <div className="grid grid-cols-3 gap-4">
         {books.map((book) => (
           <div
             key={book.id}
-            style={{
-              background: "#fff",
-              borderRadius: 12,
-              padding: "16px",
-              marginBottom: 10,
-              display: "flex",
-              alignItems: "center",
-              cursor: "pointer",
-            }}
+            className="bg-white rounded-2xl overflow-hidden shadow-sm cursor-pointer hover:shadow-md transition-shadow"
           >
-            <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                background: book.color + "14",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 22,
-                flexShrink: 0,
-              }}
-            >
-              {book.icon}
+            {/* Color bar */}
+            <div className="h-[5px]" style={{ background: book.color }} />
+            <div className="p-5">
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-3"
+                style={{ background: book.color + "14" }}
+              >
+                {book.icon}
+              </div>
+              <div className="text-[15px] font-semibold text-gray-800 mb-1">{book.name}</div>
+              <div className="text-xs text-gray-400">{book.count} 笔记录</div>
             </div>
-            <div style={{ flex: 1, marginLeft: 14 }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: "#1F2937" }}>{book.name}</div>
-              <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }}>{book.count} 笔记录</div>
-            </div>
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#D1D5DB"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
           </div>
         ))}
       </div>
-
-      <div style={{ height: 80 }} />
     </div>
   );
 }

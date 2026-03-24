@@ -56,72 +56,49 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div>
-      {/* User header */}
-      <div style={{ background: "#fff", padding: "24px 20px 20px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div
-            style={{
-              width: 52,
-              height: 52,
-              borderRadius: 26,
-              background: "#F3F4F6",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" />
-            </svg>
-          </div>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "#1F2937" }}>未登录</div>
-            <div style={{ fontSize: 13, color: "#9CA3AF", marginTop: 2 }}>登录后可同步数据</div>
-          </div>
-        </div>
-      </div>
+    <div className="p-8">
+      <div className="text-xl font-bold text-gray-800 mb-6">我的</div>
 
-      {/* Menu */}
-      <div style={{ padding: "10px 14px" }}>
-        <div style={{ background: "#fff", borderRadius: 12, overflow: "hidden" }}>
-          {menuItems.map((item, i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                padding: "15px 14px",
-                borderBottom: i < menuItems.length - 1 ? "1px solid #F3F4F6" : "none",
-                cursor: "pointer",
-              }}
-            >
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  background: "#F9FAFB",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                {item.icon}
-              </div>
-              <span style={{ flex: 1, marginLeft: 12, fontSize: 14, fontWeight: 500, color: "#374151" }}>
-                {item.label}
-              </span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6" />
+      <div className="flex gap-6">
+        {/* Left: user info card */}
+        <div className="w-[280px] shrink-0">
+          <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" />
               </svg>
             </div>
-          ))}
+            <div className="text-lg font-bold text-gray-800 mb-1">未登录</div>
+            <div className="text-sm text-gray-400 mb-5">登录后可同步数据</div>
+            <button className="w-full py-[10px] rounded-xl border-0 cursor-pointer text-white text-sm font-semibold"
+              style={{ background: "linear-gradient(135deg, #FFC107, #FF9800)" }}>
+              登录 / 注册
+            </button>
+          </div>
+        </div>
+
+        {/* Right: settings menu */}
+        <div className="flex-1">
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            {menuItems.map((item, i) => (
+              <div
+                key={i}
+                className={`flex items-center px-5 py-[15px] cursor-pointer hover:bg-gray-50 transition-colors ${
+                  i < menuItems.length - 1 ? "border-b border-gray-100" : ""
+                }`}
+              >
+                <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+                  {item.icon}
+                </div>
+                <span className="flex-1 ml-3 text-sm font-medium text-gray-700">{item.label}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-
-      <div style={{ height: 80 }} />
     </div>
   );
 }

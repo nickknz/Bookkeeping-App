@@ -5,44 +5,20 @@ export default function TransactionItem({ transaction, showBorder }) {
   const cat = getCategoryById(transaction.catId);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        padding: "13px 14px",
-        borderBottom: showBorder ? "1px solid #F3F4F6" : "none",
-      }}
-    >
+    <div className={`flex items-center px-5 py-4 ${showBorder ? "border-b border-gray-100" : ""}`}>
       {/* Category icon */}
       <div
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: 11,
-          background: cat.bg,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
+        className="w-[40px] h-[40px] rounded-[12px] flex items-center justify-center shrink-0"
+        style={{ background: cat.bg }}
       >
         <CategoryIcon id={transaction.catId} color={cat.color} />
       </div>
 
       {/* Name + note */}
-      <div style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 500, color: "#1F2937" }}>{cat.name}</div>
+      <div className="flex-1 ml-4 min-w-0">
+        <div className="text-sm font-medium text-gray-800 leading-snug">{cat.name}</div>
         {transaction.note && (
-          <div
-            style={{
-              fontSize: 12,
-              color: "#B0B0B0",
-              marginTop: 1,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
+          <div className="text-xs text-gray-400 mt-[3px] overflow-hidden text-ellipsis whitespace-nowrap">
             {transaction.note}
           </div>
         )}
@@ -50,16 +26,10 @@ export default function TransactionItem({ transaction, showBorder }) {
 
       {/* Amount */}
       <div
-        style={{
-          fontSize: 15,
-          fontWeight: 600,
-          color: transaction.type === "expense" ? "#1F2937" : "#10B981",
-          flexShrink: 0,
-          fontFeatureSettings: '"tnum"',
-        }}
+        className={`text-[15px] font-semibold shrink-0 ml-6 ${transaction.type === "expense" ? "text-gray-700" : "text-emerald-500"}`}
+        style={{ fontFeatureSettings: '"tnum"' }}
       >
-        {transaction.type === "expense" ? "-" : "+"}
-        {transaction.amount.toFixed(2)}
+        {transaction.type === "expense" ? "−" : "+"}¥{transaction.amount.toFixed(2)}
       </div>
     </div>
   );

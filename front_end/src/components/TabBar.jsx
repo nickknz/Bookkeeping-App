@@ -32,20 +32,8 @@ const TABS = [
 export default function TabBar({ activeTab, onChangeTab }) {
   return (
     <div
-      style={{
-        position: "fixed",
-        bottom: 0,
-        left: "50%",
-        transform: "translateX(-50%)",
-        width: "100%",
-        maxWidth: 430,
-        background: "#fff",
-        borderTop: "1px solid #F3F4F6",
-        display: "flex",
-        padding: "6px 0",
-        paddingBottom: "calc(6px + env(safe-area-inset-bottom, 0px))",
-        zIndex: 50,
-      }}
+      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-100 flex pt-[6px] z-50"
+      style={{ paddingBottom: "calc(6px + env(safe-area-inset-bottom, 0px))" }}
     >
       {TABS.map((t) => {
         const active = activeTab === t.id;
@@ -54,21 +42,11 @@ export default function TabBar({ activeTab, onChangeTab }) {
           <button
             key={t.id}
             onClick={() => onChangeTab(t.id)}
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 1,
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "4px 0",
-              color,
-            }}
+            className="flex-1 flex flex-col items-center gap-px bg-transparent border-0 cursor-pointer py-1"
+            style={{ color }}
           >
             {t.icon(color)}
-            <span style={{ fontSize: 10, fontWeight: active ? 600 : 400 }}>{t.label}</span>
+            <span className={`text-[10px] ${active ? "font-semibold" : "font-normal"}`}>{t.label}</span>
           </button>
         );
       })}
