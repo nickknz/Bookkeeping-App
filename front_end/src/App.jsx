@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import HomePage from "./pages/HomePage";
 import ChartPage from "./pages/ChartPage";
@@ -9,7 +10,6 @@ import MOCK_TRANSACTIONS from "./data/mockTransactions";
 
 export default function App() {
   const [transactions, setTransactions] = useState(MOCK_TRANSACTIONS);
-  const [activeTab, setActiveTab] = useState("home");
   const [showAddPage, setShowAddPage] = useState(false);
 
   const handleAddTransaction = useCallback((newTx) => {
@@ -18,17 +18,16 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      <Sidebar
-        activeTab={activeTab}
-        onChangeTab={setActiveTab}
-        onAddClick={() => setShowAddPage(true)}
-      />
+      <Sidebar onAddClick={() => setShowAddPage(true)} />
 
       <main className="flex-1 overflow-y-auto">
-        {activeTab === "home" && <HomePage transactions={transactions} />}
-        {activeTab === "chart" && <ChartPage transactions={transactions} />}
-        {activeTab === "ledger" && <LedgerPage />}
-        {activeTab === "me" && <ProfilePage />}
+        <Routes>
+          <Route path="/" element={<HomePage transactions={transactions} />} />
+          <Route path="/chart" element={<ChartPage transactions={transactions} />} />
+          <Route path="/ledger" element={<LedgerPage />} />
+          <Route path="/me" element={<ProfilePage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
 
       {showAddPage && (

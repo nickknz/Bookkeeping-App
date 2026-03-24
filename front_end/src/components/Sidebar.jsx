@@ -1,13 +1,17 @@
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, BarChart2, BookOpen, User, Plus } from 'lucide-react';
 
 const TABS = [
-  { id: "home", label: "首页", icon: Home },
-  { id: "chart", label: "图表", icon: BarChart2 },
-  { id: "ledger", label: "账本", icon: BookOpen },
-  { id: "me", label: "我的", icon: User },
+  { path: "/",       label: "首页", icon: Home },
+  { path: "/chart",  label: "图表", icon: BarChart2 },
+  { path: "/ledger", label: "账本", icon: BookOpen },
+  { path: "/me",     label: "我的", icon: User },
 ];
 
-export default function Sidebar({ activeTab, onChangeTab, onAddClick }) {
+export default function Sidebar({ onAddClick }) {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
   return (
     <div className="w-[250px] h-full bg-white border-r border-gray-100 flex flex-col shrink-0">
       {/* Logo */}
@@ -19,11 +23,11 @@ export default function Sidebar({ activeTab, onChangeTab, onAddClick }) {
       {/* Nav */}
       <nav className="flex-1 px-3">
         {TABS.map((t) => {
-          const active = activeTab === t.id;
+          const active = pathname === t.path;
           return (
             <button
-              key={t.id}
-              onClick={() => onChangeTab(t.id)}
+              key={t.path}
+              onClick={() => navigate(t.path)}
               className="w-full flex items-center gap-3 px-4 py-[11px] rounded-xl mb-1 border-0 cursor-pointer text-left transition-all duration-150 relative"
               style={{
                 background: active ? "#FFF7ED" : "transparent",
