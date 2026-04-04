@@ -50,7 +50,7 @@
 
 ### 2.2 一期核心表（4 张）
 
-#### User 表
+### User 表
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
@@ -63,20 +63,16 @@
 | created_at | TIMESTAMP | NOT NULL | 注册时间 |
 | updated_at | TIMESTAMP | NOT NULL | 更新时间 |
 
-#### Category 表
+### Category 表
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
 | id | UUID | PK | 主键 |
-| user_id | UUID | FK → User, NULL | 系统预设分类为 NULL |
-| parent_id | UUID | FK → Category, NULL | 父分类，NULL = 一级分类 |
 | name | VARCHAR(50) | NOT NULL | 分类名称 |
-| icon | VARCHAR(50) | NULL | 图标标识 |
+| icon | VARCHAR(50) | NULL | 图标 name |
 | type | VARCHAR(10) | NOT NULL | `income` / `expense` |
-| is_default | BOOLEAN | DEFAULT false | 是否系统预设 |
-| sort_order | INTEGER | DEFAULT 0 | 排序顺序 |
 
-#### Transaction 表
+### Transaction 表
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
@@ -86,34 +82,36 @@
 | amount | DECIMAL(12,2) | NOT NULL | 金额，精确到分 |
 | type | VARCHAR(10) | NOT NULL | `income` / `expense` |
 | note | VARCHAR(500) | NULL | 备注 |
-| tags | JSONB | NULL | 标签数组 |
 | date | DATE | NOT NULL | 交易日期 |
 | created_at | TIMESTAMP | NOT NULL | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL | 更新时间 |
 
-**核心索引（一期唯一需要关注的性能优化）：**
+**核心索引：**
 
 ```sql
 CREATE INDEX idx_transaction_user_date ON transaction(user_id, date DESC);
+CREATE INDEX idx_transaction_category ON transaction(category_id);
 ```
 
-#### Budget 表
+### Budget 表
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
 | id | UUID | PK | 主键 |
 | user_id | UUID | FK → User, NOT NULL | 所属用户 |
-| category_id | UUID | FK → Category, NULL | NULL = 总预算 |
-| month | VARCHAR(7) | NOT NULL | 格式：`2026-03` |
+| month | DATE | NOT NULL | 每月1号，如 `2026-03-01` |
 | limit_amount | DECIMAL(12,2) | NOT NULL | 预算上限 |
 | created_at | TIMESTAMP | NOT NULL | 创建时间 |
+| updated_at | TIMESTAMP | NOT NULL | 更新时间 |
 
-### 2.3 建表 SQL（放在 `src/main/resources/db/schema.sql`）
+---
+
+## 2.3 建表 SQL（`src/main/resources/db/schema.sql`）
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-CREATE TABLE "user" (
+CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
@@ -126,47 +124,45 @@ CREATE TABLE "user" (
 
 CREATE TABLE category (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES "user"(id),
-    parent_id UUID REFERENCES category(id),
     name VARCHAR(50) NOT NULL,
     icon VARCHAR(50),
-    type VARCHAR(10) NOT NULL CHECK (type IN ('income', 'expense')),
-    is_default BOOLEAN NOT NULL DEFAULT false,
-    sort_order INTEGER NOT NULL DEFAULT 0
+    type VARCHAR(10) NOT NULL CHECK (type IN ('income', 'expense'))
 );
 
 CREATE TABLE transaction (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES "user"(id),
+    user_id UUID NOT NULL REFERENCES users(id),
     category_id UUID NOT NULL REFERENCES category(id),
     amount DECIMAL(12,2) NOT NULL,
     type VARCHAR(10) NOT NULL CHECK (type IN ('income', 'expense')),
     note VARCHAR(500),
-    tags JSONB,
     date DATE NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_transaction_user_date ON transaction(user_id, date DESC);
+CREATE INDEX idx_transaction_category ON transaction(category_id);
 
 CREATE TABLE budget (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES "user"(id),
-    category_id UUID REFERENCES category(id),
-    month VARCHAR(7) NOT NULL,
+    user_id UUID NOT NULL REFERENCES users(id),
+    month DATE NOT NULL,
     limit_amount DECIMAL(12,2) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, month)
 );
 ```
 
-### 2.4 实体关系
+---
+
+## 2.4 实体关系
 
 ```
-User ──1:N──▶ Transaction ◀──N:1── Category
-  │                                    │ (self-ref: parent_id)
-  ├──1:N──▶ Category
-  └──1:N──▶ Budget ──N:1──▶ Category (可选)
+Users ──1:N──▶ Transaction ◀──N:1── Category
+  │
+  └──1:N──▶ Budget
 ```
 
 ### 2.5 二期多账本扩展方案
