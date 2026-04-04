@@ -90,7 +90,6 @@
 
 ```sql
 CREATE INDEX idx_transaction_user_date ON transaction(user_id, date DESC);
-CREATE INDEX idx_transaction_category ON transaction(category_id);
 ```
 
 ### Budget 表
