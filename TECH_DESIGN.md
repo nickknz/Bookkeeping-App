@@ -56,11 +56,11 @@
 | 状态管理 | Zustand | 轻量级，简单直观 |
 | 路由 | React Router v6 | 声明式路由，懒加载 |
 | 后端 | Spring Boot 3 + Java 17+ | 企业级框架，生态成熟，强类型 |
-| ORM | Spring Data JPA + Hibernate | 自动建表、CRUD、复杂查询 |
+| ORM | MyBatis + MyBatis-Plus | SQL 控制力强，复杂查询灵活；MyBatis-Plus 提供通用 CRUD 减少样板代码 |
 | 数据库 | PostgreSQL 16 | ACID 事务、jsonb、原生分区表 |
 | 缓存 | Redis（可选） | 统计数据缓存，二期引入 |
 | 认证 | Spring Security + JWT | 无状态认证，支持 OAuth2 |
-| 构建工具 | Gradle | 比 Maven 更简洁灵活 |
+| 构建工具 | Maven | 生态最广，依赖管理稳定 |
 
 ### 2.2 选型理由
 
@@ -73,7 +73,7 @@
 #### 后端：Spring Boot
 
 - Spring Security 开箱即用，认证、权限、CSRF 保护完善
-- Spring Data JPA 自动生成 CRUD，复杂查询用 `@Query` 注解
+- MyBatis 每条 SQL 自己写，复杂聚合查询可控；MyBatis-Plus 自动生成简单 CRUD
 - 事务管理成熟，`@Transactional` 一个注解搞定
 - Java 强类型在大项目中维护性更好
 
@@ -100,7 +100,7 @@
                    │ REST API (JSON)
 ┌──────────────────▼──────────────────────────┐
 │           后端 (Spring Boot 3)               │
-│  Controller → Service → Repository          │
+│  Controller → Service → Mapper              │
 └───────┬─────────────────────┬───────────────┘
         │                     │
 ┌───────▼───────┐     ┌──────▼────────┐
@@ -116,7 +116,7 @@
 | 表现层 | 用户界面、交互逻辑、图表渲染 | React + Tailwind + Recharts |
 | API 层 | RESTful 接口、请求验证、响应封装 | Spring MVC + `@RestController` |
 | 业务层 | 记账逻辑、统计计算、预算检查 | Spring Service + `@Transactional` |
-| 持久层 | 数据库访问、查询优化 | Spring Data JPA + Repository |
+| 持久层 | 数据库访问、查询优化 | MyBatis Mapper + XML |
 | 数据层 | 数据存储、索引、事务 | PostgreSQL |
 
 ### 3.3 后端项目结构
@@ -126,14 +126,14 @@ bookkeeping-api/
 ├── src/main/java/com/app/bookkeeping/
 │   ├── controller/        ← REST 接口层
 │   ├── service/           ← 业务逻辑层
-│   ├── repository/        ← 数据访问层
-│   ├── entity/            ← JPA 实体类
+│   ├── mapper/            ← MyBatis Mapper 接口
+│   ├── entity/            ← 数据库实体（POJO）
 │   ├── dto/               ← 数据传输对象
 │   ├── config/            ← 配置类（安全、CORS等）
 │   └── exception/         ← 全局异常处理
 ├── src/main/resources/
 │   └── application.yml    ← 配置文件
-└── build.gradle
+└── pom.xml
 ```
 
 ---
@@ -240,7 +240,7 @@ CREATE INDEX idx_transaction_user_date ON transaction(user_id, date DESC);
 
 ### 5.1 基础约定
 
-- **基础路径**：`/api/v1`
+- **基础路径**：`/api`
 - **认证方式**：Bearer Token (JWT)
 - **响应格式**：统一包装 `{ code, message, data }`
 - **分页**：`?page=0&size=20`，默认每页 20 条
@@ -250,53 +250,53 @@ CREATE INDEX idx_transaction_user_date ON transaction(user_id, date DESC);
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/v1/auth/register` | 用户注册 |
-| POST | `/api/v1/auth/login` | 登录，返回 JWT |
-| POST | `/api/v1/auth/refresh` | 刷新 Token |
-| GET | `/api/v1/auth/me` | 获取当前用户信息 |
+| POST | `/api/auth/register` | 用户注册 |
+| POST | `/api/auth/login` | 登录，返回 JWT |
+| POST | `/api/auth/refresh` | 刷新 Token |
+| GET | `/api/auth/me` | 获取当前用户信息 |
 
 ### 5.3 交易接口
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/v1/transactions` | 新增一笔交易 |
-| GET | `/api/v1/transactions` | 查询交易列表（支持筛选、分页） |
-| GET | `/api/v1/transactions/{id}` | 查询单笔交易详情 |
-| PUT | `/api/v1/transactions/{id}` | 修改交易 |
-| DELETE | `/api/v1/transactions/{id}` | 删除交易 |
+| POST | `/api/transactions` | 新增一笔交易 |
+| GET | `/api/transactions` | 查询交易列表（支持筛选、分页） |
+| GET | `/api/transactions/{id}` | 查询单笔交易详情 |
+| PUT | `/api/transactions/{id}` | 修改交易 |
+| DELETE | `/api/transactions/{id}` | 删除交易 |
 
 **查询参数示例：**
 
 ```
-GET /api/v1/transactions?startDate=2026-03-01&endDate=2026-03-31&type=expense&categoryId=xxx&keyword=外卖
+GET /api/transactions?startDate=2026-03-01&endDate=2026-03-31&type=expense&categoryId=xxx&keyword=外卖
 ```
 
 ### 5.4 分类接口
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/categories` | 获取所有分类（系统 + 自定义） |
-| POST | `/api/v1/categories` | 新增自定义分类 |
-| PUT | `/api/v1/categories/{id}` | 修改分类 |
-| DELETE | `/api/v1/categories/{id}` | 删除自定义分类 |
+| GET | `/api/categories` | 获取所有分类（系统 + 自定义） |
+| POST | `/api/categories` | 新增自定义分类 |
+| PUT | `/api/categories/{id}` | 修改分类 |
+| DELETE | `/api/categories/{id}` | 删除自定义分类 |
 
 ### 5.5 统计接口
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/stats/summary` | 月度收支总览（总收入、总支出、结余） |
-| GET | `/api/v1/stats/trend` | 收支趋势（按日/月） |
-| GET | `/api/v1/stats/category-ranking` | 分类排行榜 |
-| GET | `/api/v1/stats/budget-progress` | 预算执行进度 |
+| GET | `/api/stats/summary` | 月度收支总览（总收入、总支出、结余） |
+| GET | `/api/stats/trend` | 收支趋势（按日/月） |
+| GET | `/api/stats/category-ranking` | 分类排行榜 |
+| GET | `/api/stats/budget-progress` | 预算执行进度 |
 
 ### 5.6 预算接口
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/budgets` | 获取当月预算列表 |
-| POST | `/api/v1/budgets` | 设置预算 |
-| PUT | `/api/v1/budgets/{id}` | 修改预算 |
-| DELETE | `/api/v1/budgets/{id}` | 删除预算 |
+| GET | `/api/budgets` | 获取当月预算列表 |
+| POST | `/api/budgets` | 设置预算 |
+| PUT | `/api/budgets/{id}` | 修改预算 |
+| DELETE | `/api/budgets/{id}` | 删除预算 |
 
 ---
 
@@ -366,7 +366,7 @@ GET /api/v1/transactions?startDate=2026-03-01&endDate=2026-03-31&type=expense&ca
 
 - CORS 白名单限制允许的前端域名
 - Rate Limiting：单 IP 每分钟最多 60 次请求
-- SQL 注入防护：JPA 参数化查询自动防御
+- SQL 注入防护：MyBatis `#{}` 参数化查询自动防御（禁止用 `${}` 拼接用户输入）
 - XSS 防护：前端输出转义 + CSP Header
 
 ---
@@ -433,7 +433,7 @@ GET /api/v1/transactions?startDate=2026-03-01&endDate=2026-03-31&type=expense&ca
 
 | 周次 | 任务 | 交付物 |
 |------|------|--------|
-| 第 1 周 | 项目搭建 + 数据模型 + 认证 | Spring Boot 项目 + JPA Entity + JWT 登录注册 |
+| 第 1 周 | 项目搭建 + 数据模型 + 认证 | Spring Boot 项目 + MyBatis Entity/Mapper + JWT 登录注册 |
 | 第 2 周 | 记账核心流程 | 新增/查看/修改/删除交易 + 分类管理 |
 | 第 3 周 | 统计图表 + 首页 | 月度汇总 + 折线图 + 分类排行 |
 

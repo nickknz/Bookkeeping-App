@@ -182,7 +182,7 @@ Users ──1:N──▶ Transaction ◀──N:1── Category
 
 ### 3.1 基础约定
 
-- 基础路径：`/api/v1`
+- 基础路径：`/api`
 - 认证：Bearer Token（JWT）
 - 响应格式：`{ "code": 200, "message": "success", "data": {} }`
 - 分页：`?page=0&size=20`，默认每页 20 条（使用 MyBatis-Plus 的 Page 分页）
@@ -192,20 +192,20 @@ Users ──1:N──▶ Transaction ◀──N:1── Category
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/v1/auth/register` | 用户注册 |
-| POST | `/api/v1/auth/login` | 登录，返回 JWT |
-| POST | `/api/v1/auth/refresh` | 刷新 Token |
-| GET | `/api/v1/auth/me` | 获取当前用户信息 |
+| POST | `/api/auth/register` | 用户注册 |
+| POST | `/api/auth/login` | 登录，返回 JWT |
+| POST | `/api/auth/refresh` | 刷新 Token |
+| GET | `/api/auth/me` | 获取当前用户信息 |
 
 ### 3.3 交易接口
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/v1/transactions` | 新增交易 |
-| GET | `/api/v1/transactions` | 查询列表（支持筛选、分页） |
-| GET | `/api/v1/transactions/{id}` | 查询单笔详情 |
-| PUT | `/api/v1/transactions/{id}` | 修改交易 |
-| DELETE | `/api/v1/transactions/{id}` | 删除交易 |
+| POST | `/api/transactions` | 新增交易 |
+| GET | `/api/transactions` | 查询列表（支持筛选、分页） |
+| GET | `/api/transactions/{id}` | 查询单笔详情 |
+| PUT | `/api/transactions/{id}` | 修改交易 |
+| DELETE | `/api/transactions/{id}` | 删除交易 |
 
 查询参数：`?startDate=2026-03-01&endDate=2026-03-31&type=expense&categoryId=xxx&keyword=外卖`
 
@@ -213,28 +213,28 @@ Users ──1:N──▶ Transaction ◀──N:1── Category
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/categories` | 获取所有分类（系统 + 自定义） |
-| POST | `/api/v1/categories` | 新增自定义分类 |
-| PUT | `/api/v1/categories/{id}` | 修改分类 |
-| DELETE | `/api/v1/categories/{id}` | 删除自定义分类 |
+| GET | `/api/categories` | 获取所有分类（系统 + 自定义） |
+| POST | `/api/categories` | 新增自定义分类 |
+| PUT | `/api/categories/{id}` | 修改分类 |
+| DELETE | `/api/categories/{id}` | 删除自定义分类 |
 
 ### 3.5 统计接口
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/stats/summary` | 月度收支总览（总收入、总支出、结余） |
-| GET | `/api/v1/stats/trend` | 收支趋势（按日/月） |
-| GET | `/api/v1/stats/category-ranking` | 分类排行榜 |
-| GET | `/api/v1/stats/budget-progress` | 预算执行进度 |
+| GET | `/api/stats/summary` | 月度收支总览（总收入、总支出、结余） |
+| GET | `/api/stats/trend` | 收支趋势（按日/月） |
+| GET | `/api/stats/category-ranking` | 分类排行榜 |
+| GET | `/api/stats/budget-progress` | 预算执行进度 |
 
 ### 3.6 预算接口
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/budgets` | 获取当月预算列表 |
-| POST | `/api/v1/budgets` | 设置预算 |
-| PUT | `/api/v1/budgets/{id}` | 修改预算 |
-| DELETE | `/api/v1/budgets/{id}` | 删除预算 |
+| GET | `/api/budgets` | 获取当月预算列表 |
+| POST | `/api/budgets` | 设置预算 |
+| PUT | `/api/budgets/{id}` | 修改预算 |
+| DELETE | `/api/budgets/{id}` | 删除预算 |
 
 ---
 
