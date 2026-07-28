@@ -4,7 +4,7 @@
 
 - **后端**:Spring Boot 3.5 + Java 17（`bookkeeping-api/`）
 - **前端**:React 18 + Vite + Tailwind（`front_end/`）
-- **数据库**:PostgreSQL 16（通过 Docker 运行）
+- **数据库**: PostgreSQL 16（通过 Docker 运行）
 
 ---
 
@@ -12,7 +12,7 @@
 
 | 工具 | 版本 | 用途 |
 |------|------|------|
-| Docker | 任意较新版本 | 运行 PostgreSQL |
+| Docker Desktop + Docker Compose | Compose v2 | 运行 PostgreSQL，或一键运行 PostgreSQL + 后端 |
 | JDK | 17 | 运行后端 |
 | Node.js | 18+ | 运行前端 |
 
@@ -30,7 +30,7 @@ java -version   # 显示 17 即成功
 
 ## 启动步骤
 
-按 **数据库 → 后端 → 前端** 的顺序启动。
+日常开发建议按 **数据库 → 后端 → 前端** 的顺序启动：数据库放在 Docker 中，后端由 IntelliJ 启动，便于断点调试与热重载。
 
 ### 1. 启动数据库（Docker）
 
@@ -51,13 +51,28 @@ docker compose ps
 
 ### 2. 启动后端
 
+#### 推荐：IntelliJ / 本机运行
+
 ```bash
 cd bookkeeping-api
-./mvnw spring-boot:run
+SPRING_PROFILES_ACTIVE=local ./mvnw spring-boot:run
 ```
 
 - 后端运行在 `http://localhost:8080`。
 - 已启用 `devtools`,修改代码会自动热重载。
+- 在 IntelliJ 的 Run Configuration 中添加环境变量 `SPRING_PROFILES_ACTIVE=local`；本机数据库地址、用户名和密码可按需通过 `DB_URL`、`DB_USERNAME`、`DB_PASSWORD` 覆盖。
+
+#### 一键容器运行：数据库 + 后端
+
+在项目根目录执行：
+
+```bash
+docker compose up --build -d
+```
+
+- 后端容器会等待 PostgreSQL 健康检查通过后再启动，访问地址仍为 `http://localhost:8080`。
+- 查看后端日志：`docker compose logs -f api`。
+- 代码改动后重新构建：`docker compose up --build -d api`。容器方式适合联调、验收和部署前验证；日常改后端代码仍推荐 IntelliJ 运行。
 
 ### 3. 启动前端
 
