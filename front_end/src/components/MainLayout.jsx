@@ -13,15 +13,16 @@ export default function MainLayout() {
   }, []);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden">
+    <div className="flex min-h-screen w-full bg-[#f7f7f5]">
       <Sidebar onAddClick={() => setShowAddPage(true)} />
-      <main className="flex-1 overflow-y-auto">
+      <main className="app-main min-w-0 flex-1 pb-24 lg:ml-[268px] lg:pb-0">
         <Outlet context={{ transactions }} />
       </main>
       {showAddPage && (
         <AddPage
           onSave={handleAddTransaction}
           onClose={() => setShowAddPage(false)}
+          defaultDate={transactions[0]?.date}
         />
       )}
     </div>

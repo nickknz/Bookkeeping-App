@@ -1,24 +1,57 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  AlignLeft,
+  ArrowDownLeft,
+  ArrowUpRight,
+  CalendarDays,
+  Check,
+  ChevronRight,
+  X,
+} from "lucide-react";
 import { CATEGORIES } from "../data/categories";
 import CategoryIcon from "../components/CategoryIcon";
 
-export default function AddPage({ onSave, onClose }) {
+export default function AddPage({ onSave, onClose, defaultDate }) {
   const [txType, setTxType] = useState("expense");
   const [selectedCat, setSelectedCat] = useState(null);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(defaultDate || new Date().toISOString().slice(0, 10));
 
   const categories = CATEGORIES[txType];
+  const isValid = Boolean(selectedCat && amount && Number(amount) > 0);
+  const selectedCategory = useMemo(
+    () => categories.find((category) => category.id === selectedCat),
+    [categories, selectedCat],
+  );
 
-  const handleSave = () => {
-    if (!selectedCat || !amount || parseFloat(amount) <= 0) return;
+  useEffect(() => {
+    const handleEscape = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [onClose]);
+
+  const switchType = (type) => {
+    setTxType(type);
+    setSelectedCat(null);
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (!isValid) return;
     onSave({
       id: Date.now(),
       type: txType,
       catId: selectedCat,
-      amount: parseFloat(amount),
-      note: note || null,
+      amount: Number(amount),
+      note: note.trim() || null,
       date,
     });
     onClose();
@@ -26,128 +59,174 @@ export default function AddPage({ onSave, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.4)" }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      className="fixed inset-0 z-[100] flex items-end justify-end bg-[#080f1e]/55 backdrop-blur-[2px] lg:items-stretch"
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[480px] mx-4 overflow-hidden">
-        {/* Header */}
-        <div className="px-6 pt-5 pb-4 border-b border-gray-100 flex items-center justify-between">
-          <div className="bg-gray-100 rounded-[20px] p-[3px] inline-flex">
-            {["expense", "income"].map((t) => (
-              <button
-                key={t}
-                onClick={() => { setTxType(t); setSelectedCat(null); }}
-                className={`px-5 py-[5px] text-[13px] font-medium cursor-pointer border-0 rounded-[17px] transition-all duration-150 ${
-                  txType === t
-                    ? "bg-white text-gray-800 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-                    : "bg-transparent text-gray-400"
-                }`}
-              >
-                {t === "expense" ? "支出" : "收入"}
-              </button>
-            ))}
+      <form
+        onSubmit={handleSubmit}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-transaction-title"
+        className="flex h-[92svh] w-full max-w-[580px] flex-col overflow-hidden rounded-t-[28px] bg-[#f7f7f5] shadow-[-24px_0_65px_rgba(8,15,30,0.2)] lg:h-full lg:rounded-none"
+      >
+        <header className="shrink-0 border-b border-[#e9eae6] bg-white px-5 pb-5 pt-4 sm:px-7 lg:pt-7">
+          <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#ddded8] lg:hidden" />
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#b37800]">New transaction</div>
+              <h2 id="add-transaction-title" className="mt-1.5 text-[22px] font-bold tracking-[-0.03em] text-[#2c2c29]">记一笔</h2>
+              <p className="mt-1 text-[11px] text-[#999992]">记录此刻，让每一笔钱都有迹可循。</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="关闭"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f5f5f2] text-[#7d7f79] transition hover:bg-[#e9eae6] hover:text-[#343431]"
+            >
+              <X size={18} />
+            </button>
           </div>
-          <button onClick={onClose} className="bg-transparent border-0 cursor-pointer p-1 flex">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
 
-        {/* Category grid */}
-        <div className="px-5 pt-4 pb-3">
-          <div className="grid grid-cols-5 gap-1">
-            {categories.map((cat) => {
-              const isSelected = selectedCat === cat.id;
+          <div className="mt-5 grid grid-cols-2 rounded-[14px] bg-[#f5f5f2] p-1">
+            {[
+              { id: "expense", label: "支出", icon: ArrowUpRight },
+              { id: "income", label: "收入", icon: ArrowDownLeft },
+            ].map((type) => {
+              const active = txType === type.id;
+              const Icon = type.icon;
               return (
                 <button
-                  key={cat.id}
-                  onClick={() => setSelectedCat(cat.id)}
-                  className="flex flex-col items-center gap-[5px] pt-[10px] pb-[6px] rounded-xl border-0 cursor-pointer transition-all duration-150"
-                  style={{ background: isSelected ? cat.bg : "transparent" }}
+                  key={type.id}
+                  type="button"
+                  onClick={() => switchType(type.id)}
+                  className={`flex items-center justify-center gap-2 rounded-[11px] py-2.5 text-xs font-bold transition ${
+                    active ? "bg-white text-[#343431] shadow-sm" : "text-[#979790] hover:text-[#7a7a74]"
+                  }`}
                 >
-                  <div
-                    className="w-[40px] h-[40px] rounded-[12px] flex items-center justify-center transition-all duration-150"
-                    style={{ background: isSelected ? cat.color : cat.bg }}
-                  >
-                    <CategoryIcon id={cat.id} color={isSelected ? "#fff" : cat.color} />
-                  </div>
-                  <span
-                    className={`text-[11px] ${isSelected ? "font-semibold" : "font-normal"}`}
-                    style={{ color: isSelected ? cat.color : "#6B7280" }}
-                  >
-                    {cat.name}
-                  </span>
+                  <Icon size={15} className={active ? (type.id === "income" ? "text-[#15936a]" : "text-[#df655f]") : ""} />
+                  {type.label}
                 </button>
               );
             })}
           </div>
-        </div>
+        </header>
 
-        {/* Form fields */}
-        <div className="px-6 pt-2 pb-5 space-y-4">
-          <div>
-            <label className="text-xs font-medium text-gray-400 mb-[7px] block">金额</label>
-            <div className="flex items-center border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#FF9800] transition-colors">
-              <span className="text-gray-400 mr-2 text-sm">¥</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-                className="flex-1 border-0 outline-none text-[17px] font-bold text-gray-800 bg-transparent"
-                style={{ fontFeatureSettings: '"tnum"' }}
-              />
+        <div className="soft-scrollbar flex-1 overflow-y-auto px-5 py-6 sm:px-7">
+          <section>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-[13px] font-bold text-[#464642]">选择分类</h3>
+                <p className="mt-1 text-[10px] text-[#9a9a93]">这笔钱花在了哪里？</p>
+              </div>
+              {selectedCategory && (
+                <div className="flex items-center gap-1.5 text-[10px] font-bold" style={{ color: selectedCategory.color }}>
+                  <Check size={13} /> {selectedCategory.name}
+                </div>
+              )}
             </div>
-          </div>
 
-          <div>
-            <label className="text-xs font-medium text-gray-400 mb-[7px] block">备注</label>
-            <input
-              type="text"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="添加备注..."
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#FF9800] transition-colors"
-            />
-          </div>
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+              {categories.map((category) => {
+                const selected = selectedCat === category.id;
+                return (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => setSelectedCat(category.id)}
+                    className={`relative flex min-w-0 flex-col items-center gap-2 rounded-[16px] border px-1 py-3 transition ${
+                      selected
+                        ? "border-transparent bg-white shadow-[0_8px_20px_rgba(90,68,10,0.08)]"
+                        : "border-transparent hover:border-[#e3e4df] hover:bg-white/70"
+                    }`}
+                  >
+                    <span
+                      className="flex h-10 w-10 items-center justify-center rounded-[13px] transition-transform"
+                      style={{ color: category.color, background: selected ? category.color : category.bg }}
+                    >
+                      <CategoryIcon id={category.id} color={selected ? "#fff" : category.color} />
+                    </span>
+                    <span className={`w-full truncate text-[10px] ${selected ? "font-bold text-[#464642]" : "font-medium text-[#83837d]"}`}>
+                      {category.name}
+                    </span>
+                    {selected && <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full" style={{ background: category.color }} />}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
 
-          <div>
-            <label className="text-xs font-medium text-gray-400 mb-[7px] block">日期</label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#FF9800] transition-colors"
-            />
-          </div>
+          <section className="mt-7 space-y-3.5">
+            <div className="rounded-[18px] border border-[#e7e8e3] bg-white p-4 transition focus-within:border-[#e1bd55] focus-within:ring-4 focus-within:ring-[#e6a900]/[0.07]">
+              <label htmlFor="transaction-amount" className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#a0a099]">金额</label>
+              <div className="mt-2 flex items-center">
+                <span className="mr-2 text-xl font-semibold text-[#80807a]">¥</span>
+                <input
+                  id="transaction-amount"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                  placeholder="0.00"
+                  className="numeric min-w-0 flex-1 border-0 bg-transparent text-[30px] font-bold tracking-[-0.04em] text-[#2c2c29] outline-none placeholder:text-[#d9dad5]"
+                />
+                <span className="text-[10px] text-[#a8a8a1]">CNY</span>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex items-center gap-3 rounded-[16px] border border-[#e7e8e3] bg-white px-4 py-3.5 transition focus-within:border-[#e1bd55]">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[#f5f5f2] text-[#7c7c76]">
+                  <AlignLeft size={15} />
+                </div>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[9px] font-bold text-[#a5a59e]">备注</span>
+                  <input
+                    type="text"
+                    value={note}
+                    onChange={(event) => setNote(event.target.value)}
+                    placeholder="添加备注"
+                    className="mt-1 w-full border-0 bg-transparent text-xs font-semibold text-[#52524d] outline-none placeholder:font-medium placeholder:text-[#c0c0b9]"
+                  />
+                </span>
+              </label>
+
+              <label className="flex items-center gap-3 rounded-[16px] border border-[#e7e8e3] bg-white px-4 py-3.5 transition focus-within:border-[#e1bd55]">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[#f5f5f2] text-[#7c7c76]">
+                  <CalendarDays size={15} />
+                </div>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[9px] font-bold text-[#a5a59e]">日期</span>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(event) => setDate(event.target.value)}
+                    className="mt-1 w-full border-0 bg-transparent text-xs font-semibold text-[#52524d] outline-none"
+                  />
+                </span>
+              </label>
+            </div>
+          </section>
         </div>
 
-        {/* Actions */}
-        <div className="px-6 pb-6 flex gap-3">
+        <footer className="shrink-0 border-t border-[#e7e8e3] bg-white px-5 py-4 sm:px-7 sm:py-5">
           <button
-            onClick={onClose}
-            className="flex-1 py-[11px] rounded-xl border border-gray-200 text-gray-600 text-[14px] font-medium cursor-pointer bg-transparent hover:bg-gray-50 transition-colors"
+            type="submit"
+            disabled={!isValid}
+            className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#ffc928] px-5 py-3.5 text-[13px] font-bold text-[#2c2c29] shadow-[0_10px_25px_rgba(146,103,0,0.14)] transition hover:bg-[#eeb315] disabled:cursor-not-allowed disabled:bg-[#e1e2dd] disabled:text-[#a0a099] disabled:shadow-none"
           >
-            取消
+            {isValid ? (
+              <>
+                保存这笔{txType === "expense" ? "支出" : "收入"}
+                <ChevronRight size={16} />
+              </>
+            ) : (
+              "请选择分类并填写金额"
+            )}
           </button>
-          <button
-            onClick={handleSave}
-            className="flex-1 py-[11px] rounded-xl border-0 text-white text-[14px] font-semibold cursor-pointer transition-opacity"
-            style={{
-              background: selectedCat && amount && parseFloat(amount) > 0
-                ? "linear-gradient(135deg, #FFC107, #FF9800)"
-                : "#E5E7EB",
-              color: selectedCat && amount && parseFloat(amount) > 0 ? "#fff" : "#9CA3AF",
-            }}
-          >
-            保存
-          </button>
-        </div>
-      </div>
+        </footer>
+      </form>
     </div>
   );
 }

@@ -1,101 +1,126 @@
-export default function ProfilePage() {
-  const menuItems = [
-    {
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
-          <rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
-        </svg>
-      ),
-      label: "分类管理",
-    },
-    {
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-          <polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
-        </svg>
-      ),
-      label: "数据导出",
-    },
-    {
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" />
-        </svg>
-      ),
-      label: "记账提醒",
-    },
-    {
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-        </svg>
-      ),
-      label: "设置",
-    },
-    {
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" />
-        </svg>
-      ),
-      label: "帮助与反馈",
-    },
-    {
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" />
-          <line x1="12" y1="8" x2="12.01" y2="8" />
-        </svg>
-      ),
-      label: "关于",
-    },
-  ];
+import {
+  BellRing,
+  ChevronRight,
+  CircleHelp,
+  Download,
+  Grid2X2,
+  Info,
+  LockKeyhole,
+  LogIn,
+  Palette,
+  Settings2,
+  ShieldCheck,
+  Smartphone,
+  UserRound,
+} from "lucide-react";
+import PageHeader from "../components/PageHeader";
 
+const SETTINGS = [
+  { label: "分类管理", description: "编辑收支分类与图标", icon: Grid2X2, tone: "bg-[#fff3bf] text-[#a97000]" },
+  { label: "数据导出", description: "导出 Excel 或 CSV 文件", icon: Download, tone: "bg-[#edf3fb] text-[#5d7fba]" },
+  { label: "记账提醒", description: "每天 21:00 提醒我记账", icon: BellRing, tone: "bg-[#fff3e2] text-[#b67824]", badge: "已开启" },
+  { label: "外观设置", description: "主题、字号与显示偏好", icon: Palette, tone: "bg-[#f2edfa] text-[#8069b0]" },
+  { label: "通用设置", description: "货币、语言与日期格式", icon: Settings2, tone: "bg-[#f5f5f2] text-[#7a7a74]" },
+];
+
+const SUPPORT = [
+  { label: "帮助与反馈", description: "常见问题与建议反馈", icon: CircleHelp },
+  { label: "隐私与安全", description: "数据使用与隐私说明", icon: LockKeyhole },
+  { label: "关于小豆记账", description: "当前版本 v0.1.0", icon: Info },
+];
+
+function SettingRow({ item, muted = false, last = false }) {
+  const Icon = item.icon;
   return (
-    <div className="p-8">
-      <div className="text-xl font-bold text-gray-800 mb-6">我的</div>
+    <button
+      type="button"
+      className={`group flex w-full items-center gap-3.5 px-4 py-4 text-left transition hover:bg-[#fafaf8] sm:px-5 ${last ? "" : "border-b border-[#ecece8]"}`}
+    >
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] ${item.tone || "bg-[#f5f5f2] text-[#777771]"}`}>
+        <Icon size={18} strokeWidth={1.9} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-bold text-[#464642]">{item.label}</div>
+        <div className="mt-1 truncate text-[10px] text-[#9a9a93] sm:text-[11px]">{item.description}</div>
+      </div>
+      {item.badge && <span className="rounded-full bg-[#fff3bf] px-2.5 py-1 text-[9px] font-bold text-[#a97000]">{item.badge}</span>}
+      <ChevronRight size={16} className={`${muted ? "text-[#ccccC5]" : "text-[#bcbcb5]"} transition group-hover:translate-x-0.5 group-hover:text-[#80807a]`} />
+    </button>
+  );
+}
 
-      <div className="flex gap-6">
-        {/* Left: user info card */}
-        <div className="w-[280px] shrink-0">
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
-            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" />
-              </svg>
-            </div>
-            <div className="text-lg font-bold text-gray-800 mb-1">未登录</div>
-            <div className="text-sm text-gray-400 mb-5">登录后可同步数据</div>
-            <button className="w-full py-[10px] rounded-xl border-0 cursor-pointer text-white text-sm font-semibold"
-              style={{ background: "linear-gradient(135deg, #FFC107, #FF9800)" }}>
-              登录 / 注册
-            </button>
-          </div>
-        </div>
+export default function ProfilePage() {
+  return (
+    <div className="page-enter mx-auto max-w-[1460px] px-4 pt-[92px] sm:px-6 lg:px-9 lg:py-9 xl:px-12">
+      <PageHeader
+        eyebrow="Account"
+        title="个人中心"
+        description="管理你的账户、数据和个性化偏好。"
+      />
 
-        {/* Right: settings menu */}
-        <div className="flex-1">
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            {menuItems.map((item, i) => (
-              <div
-                key={i}
-                className={`flex items-center px-5 py-[15px] cursor-pointer hover:bg-gray-50 transition-colors ${
-                  i < menuItems.length - 1 ? "border-b border-gray-100" : ""
-                }`}
-              >
-                <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
-                  {item.icon}
-                </div>
-                <span className="flex-1 ml-3 text-sm font-medium text-gray-700">{item.label}</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
+      <div className="grid items-start gap-5 lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[350px_minmax(0,1fr)]">
+        <aside className="space-y-5 lg:sticky lg:top-8">
+          <section className="relative overflow-hidden rounded-[26px] bg-[#ffc928] p-6 text-[#2c2c29] shadow-[0_18px_50px_rgba(146,103,0,0.14)] sm:p-7">
+            <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full border-[30px] border-black/[0.035]" />
+            <div className="relative">
+              <div className="flex h-[72px] w-[72px] items-center justify-center rounded-[22px] border border-black/[0.05] bg-white/40 text-black/55">
+                <UserRound size={30} strokeWidth={1.6} />
               </div>
-            ))}
+              <h2 className="mt-5 text-xl font-bold tracking-[-0.02em]">游客账户</h2>
+              <p className="mt-2 text-xs leading-relaxed text-black/45">登录后即可跨设备同步账本，并启用云端备份。</p>
+              <button
+                type="button"
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-[13px] font-bold text-[#3a3527] shadow-sm transition hover:bg-[#fff9de]"
+              >
+                <LogIn size={16} strokeWidth={2.2} />
+                登录 / 注册
+              </button>
+              <div className="mt-5 flex items-center justify-center gap-2 text-[10px] text-black/35">
+                <Smartphone size={12} />
+                当前数据仅保存在这台设备
+              </div>
+            </div>
+          </section>
+
+          <section className="surface-shadow rounded-[22px] border border-white bg-white p-5">
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#fff3bf] text-[#a97000]">
+                <ShieldCheck size={19} />
+              </div>
+              <div>
+                <h3 className="text-[13px] font-bold text-[#464642]">你的数据很安全</h3>
+                <p className="mt-1.5 text-[10px] leading-relaxed text-[#96968f]">本地数据不会上传，开启同步后也会通过加密通道传输。</p>
+              </div>
+            </div>
+          </section>
+        </aside>
+
+        <div className="space-y-5">
+          <section className="surface-shadow overflow-hidden rounded-[24px] border border-white bg-white">
+            <div className="flex items-center justify-between border-b border-[#ecece8] px-5 py-5 sm:px-6">
+              <div>
+                <h2 className="text-[16px] font-bold text-[#2c2c29]">偏好与数据</h2>
+                <p className="mt-1 text-[11px] text-[#9a9a93]">管理记账方式和应用体验</p>
+              </div>
+              <div className="hidden rounded-full bg-[#f7f7f4] px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#898983] sm:block">Local mode</div>
+            </div>
+            <div>
+              {SETTINGS.map((item, index) => <SettingRow key={item.label} item={item} last={index === SETTINGS.length - 1} />)}
+            </div>
+          </section>
+
+          <section className="surface-shadow overflow-hidden rounded-[24px] border border-white bg-white">
+            <div className="border-b border-[#ecece8] px-5 py-5 sm:px-6">
+              <h2 className="text-[16px] font-bold text-[#2c2c29]">支持与关于</h2>
+              <p className="mt-1 text-[11px] text-[#9a9a93]">需要帮助？我们随时在这里</p>
+            </div>
+            <div>
+              {SUPPORT.map((item, index) => <SettingRow key={item.label} item={item} muted last={index === SUPPORT.length - 1} />)}
+            </div>
+          </section>
+
+          <div className="flex items-center justify-center gap-2 py-2 text-[10px] text-[#acaca5]">
+            <ShieldCheck size={12} /> 小豆记账尊重并保护你的隐私
           </div>
         </div>
       </div>
