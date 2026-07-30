@@ -151,21 +151,28 @@ bookkeeping-api/
 ### 4.2 实体关系
 
 ```
-User ──1:N──▶ Transaction ◀──N:1── Category
-  │                                    │
-  ├──1:N──▶ Category                   │ (self-ref)
-  │                                    ▼
-  └──1:N──▶ Budget ──N:1──▶ Category (可选)
+User      1 ───── 0..N Transaction
+Category  1 ───── 0..N Transaction
+
+User      1 ───── 0..N Budget
+
+User              0..1 ◀──── 0..N Category
+Category (parent)  0..1 ◀──── 0..N Category (child)
+Category           0..1 ◀──── 0..N Budget
 ```
 
-| 关系 | 说明 |
-|------|------|
-| User → Transaction | 一对多，一个用户拥有多笔交易 |
-| User → Category | 一对多，用户可自定义分类 |
-| Category → Transaction | 一对多，每笔交易属于一个分类 |
-| Category → Category | 自引用，`parent_id` 实现二级分类 |
-| User → Budget | 一对多，用户设定多个预算 |
-| Category → Budget | 一对多（可选），预算可关联到具体分类 |
+| 关系 | User/Category 端 | 关联实体端 | 说明 |
+|------|--------------------|------------|------|
+| User ↔ Transaction | 1 | 0..N | 每笔交易必须属于一个用户，一个用户可以没有或拥有多笔交易 |
+| Category ↔ Transaction | 1 | 0..N | 每笔交易必须属于一个分类，一个分类可以关联多笔交易 |
+| User ↔ Budget | 1 | 0..N | 每条预算必须属于一个用户，一个用户可以设置多条预算 |
+| User ↔ Category | 0..1 | 0..N | 自定义分类属于一个用户；系统预设分类的 `user_id` 为 `NULL` |
+| Parent Category ↔ Child Category | 0..1 | 0..N | 一级分类没有父分类；一个父分类可以拥有多个子分类 |
+| Category ↔ Budget | 0..1 | 0..N | 分类预算关联一个分类；总预算的 `category_id` 为 `NULL` |
+
+> 这里描述的是一期目标模型。当前 `V1__init_schema.sql` 尚未包含
+> `category.user_id`、`category.parent_id` 和 `budget.category_id`，落地时应通过新的数据库迁移补充，
+> 不应直接修改已经执行过的 V1 迁移。
 
 ### 4.3 User 表
 
