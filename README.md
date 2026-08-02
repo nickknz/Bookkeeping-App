@@ -8,6 +8,15 @@
 
 ---
 
+## 项目文档
+
+- [`TECH_DESIGN.md`](./TECH_DESIGN.md)：系统级架构、产品范围、前后端边界与路线图。
+- [`Backend_Design.md`](./Backend_Design.md)：数据库、API、安全、后端代码结构与依赖的详细设计。
+
+数据库字段和 API 细节以后端设计文档为准，实际数据库结构以版本化迁移脚本为准。
+
+---
+
 ## 环境要求
 
 | 工具 | 版本 | 用途 |
@@ -84,7 +93,7 @@ npm install      # 首次运行需要
 npm run dev
 ```
 
-- 前端运行在 `http://localhost:3000`。
+- 前端运行在 `http://localhost:5173`。
 
 ---
 
@@ -92,7 +101,7 @@ npm run dev
 
 | 服务 | 地址 |
 |------|------|
-| 前端 | http://localhost:3000 |
+| 前端 | http://localhost:5173 |
 | 后端 | http://localhost:8080 |
 | 数据库 | localhost:5432 |
 

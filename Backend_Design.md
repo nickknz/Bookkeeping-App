@@ -1,6 +1,7 @@
-# CLAUDE.md — 记账 App 后端设计备忘录
+# 记账 App 后端详细设计
 
-> 本文档总结了项目设计过程中所有关于数据库和 API 的关键决策，供开发时参考。
+> 本文档是后端实现的详细设计和唯一权威来源，覆盖数据库、API、安全、代码结构与依赖。
+> 系统级架构、产品范围和部署方案参见 [`TECH_DESIGN.md`](./TECH_DESIGN.md)。
 
 ---
 
@@ -43,9 +44,7 @@
 
 ### 2.1 设计原则
 
-- **一期极简**：不引入 Ledger 层，Transaction 直接挂 `user_id`，用户进来就是默认主账本
-- **二期再加多账本**：到时新增 Ledger 表 + UserLedger 中间表，做一次数据迁移即可
-- 选择"先不建 Ledger，以后再加"的方案，而非"提前埋 ledger_id"——早期代码最少、理解成本最低
+- **一期保持单账本模型**：不创建 Ledger 或 UserLedger，Transaction 直接关联 `user_id`
 - **建表方式**：MyBatis 不会自动建表，使用 SQL 脚本手动建表（放在 `src/main/resources/db/` 目录下）
 
 ### 2.2 一期核心表（4 张）
@@ -67,10 +66,14 @@
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
-| id | UUID | PK | 主键 |
+| id | INTEGER | PK, IDENTITY | 主键，与当前 V1 保持一致 |
+| user_id | UUID | FK → User, NULL | 自定义分类所属用户；系统预设分类为 NULL |
+| parent_id | INTEGER | FK → Category, NULL | 父分类；NULL 表示一级分类 |
 | name | VARCHAR(50) | NOT NULL | 分类名称 |
 | icon | VARCHAR(50) | NULL | 图标 name |
 | type | VARCHAR(10) | NOT NULL | `income` / `expense` |
+| is_default | BOOLEAN | DEFAULT false | 是否为系统预设分类 |
+| sort_order | INTEGER | DEFAULT 0 | 展示顺序 |
 
 ### Transaction 表
 
@@ -78,10 +81,11 @@
 |------|------|------|------|
 | id | UUID | PK | 主键 |
 | user_id | UUID | FK → User, NOT NULL | 所属用户 |
-| category_id | UUID | FK → Category, NOT NULL | 所属分类 |
+| category_id | INTEGER | FK → Category, NOT NULL | 所属分类 |
 | amount | DECIMAL(12,2) | NOT NULL | 金额，精确到分 |
 | type | VARCHAR(10) | NOT NULL | `income` / `expense` |
 | note | VARCHAR(500) | NULL | 备注 |
+| tags | JSONB | NULL | 标签数组 |
 | date | DATE | NOT NULL | 交易日期 |
 | created_at | TIMESTAMP | NOT NULL | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL | 更新时间 |
@@ -98,6 +102,7 @@ CREATE INDEX idx_transaction_user_date ON transaction(user_id, date DESC);
 |------|------|------|------|
 | id | UUID | PK | 主键 |
 | user_id | UUID | FK → User, NOT NULL | 所属用户 |
+| category_id | INTEGER | FK → Category, NULL | 分类预算关联分类；总预算为 NULL |
 | month | DATE | NOT NULL | 每月1号，如 `2026-03-01` |
 | limit_amount | DECIMAL(12,2) | NOT NULL | 预算上限 |
 | created_at | TIMESTAMP | NOT NULL | 创建时间 |
@@ -105,76 +110,39 @@ CREATE INDEX idx_transaction_user_date ON transaction(user_id, date DESC);
 
 ---
 
-## 2.3 建表 SQL（`src/main/resources/db/schema.sql`）
+## 2.3 数据库迁移策略
 
-```sql
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    nickname VARCHAR(50),
-    avatar_url VARCHAR(500),
-    currency VARCHAR(3) NOT NULL DEFAULT 'CNY',
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE category (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(50) NOT NULL,
-    icon VARCHAR(50),
-    type VARCHAR(10) NOT NULL CHECK (type IN ('income', 'expense'))
-);
-
-CREATE TABLE transaction (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id),
-    category_id UUID NOT NULL REFERENCES category(id),
-    amount DECIMAL(12,2) NOT NULL,
-    type VARCHAR(10) NOT NULL CHECK (type IN ('income', 'expense')),
-    note VARCHAR(500),
-    date DATE NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_transaction_user_date ON transaction(user_id, date DESC);
-CREATE INDEX idx_transaction_category ON transaction(category_id);
-
-CREATE TABLE budget (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id),
-    month DATE NOT NULL,
-    limit_amount DECIMAL(12,2) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    UNIQUE (user_id, month)
-);
-```
+- 数据库结构以 [`bookkeeping-api/src/main/resources/db/`](./bookkeeping-api/src/main/resources/db/) 下的迁移脚本为准，文档不复制完整建表 SQL。
+- `V1__init_schema.sql` 是当前已落地的基础模型；已经执行或共享的迁移不得直接修改。
+- 新字段、约束和索引通过后续版本迁移逐步加入，例如 `V2__extend_categories_and_budgets.sql`。
+- 本节字段表描述目标一期模型；实现状态与目标模型的差异必须在迁移任务中明确记录。
 
 ---
 
 ## 2.4 实体关系
 
 ```
-Users ──1:N──▶ Transaction ◀──N:1── Category
-  │
-  └──1:N──▶ Budget
+User      1 ───── 0..N Transaction
+Category  1 ───── 0..N Transaction
+
+User      1 ───── 0..N Budget
+
+User              0..1 ◀──── 0..N Category
+Category (parent)  0..1 ◀──── 0..N Category (child)
+Category           0..1 ◀──── 0..N Budget
 ```
 
-### 2.5 二期多账本扩展方案
+| 关系 | 说明 |
+|------|------|
+| User ↔ Transaction | 每笔交易必须属于一个用户；一个用户可以拥有多笔交易 |
+| Category ↔ Transaction | 每笔交易必须属于一个分类；一个分类可以关联多笔交易 |
+| User ↔ Budget | 每条预算必须属于一个用户；一个用户可以设置多条预算 |
+| User ↔ Category | 自定义分类属于一个用户；系统预设分类的 `user_id` 为 `NULL` |
+| Parent Category ↔ Child Category | 子分类最多有一个父分类；一个父分类可以拥有多个子分类 |
+| Category ↔ Budget | 分类预算关联一个分类；总预算的 `category_id` 为 `NULL` |
 
-需要多账本时新增：
-
-- **Ledger 表**：`id`, `name`, `icon`, `is_default`, `created_by`, `created_at`
-- **UserLedger 中间表**：`user_id`, `ledger_id`, `role`（owner / member）
-- Transaction、Category、Budget 添加 `ledger_id` 字段
-
-**如何区分主账本**：Ledger 表加 `is_default` 布尔字段，每个用户有且只有一个 `is_default = true` 的账本。如果需要更灵活（同一账本对不同用户有不同默认状态），把 `is_default` 放到 UserLedger 中间表上。
-
-**数据迁移**：为每个用户创建默认 Ledger，将历史 Transaction/Category/Budget 关联过去。
+> 当前 `V1__init_schema.sql` 尚未包含 `category.user_id`、`category.parent_id`、
+> `budget.category_id` 等扩展字段，后续应通过新的迁移补充。
 
 ---
 
@@ -270,67 +238,45 @@ Users ──1:N──▶ Transaction ◀──N:1── Category
 ```
 bookkeeping-api/
 ├── pom.xml
-├── src/main/java/com/app/bookkeeping/
-│   ├── BookkeepingApplication.java        ← 启动类
-│   ├── controller/                        ← REST 接口层
+├── src/main/java/com/knzheng/bookkeeping/
+│   ├── BookkeepingApiApplication.java
+│   ├── common/
+│   │   ├── config/                        ← CORS、MyBatis 配置
+│   │   ├── exception/                     ← 全局异常处理
+│   │   ├── response/                      ← 统一响应与分页对象
+│   │   └── security/                      ← JWT、Spring Security
+│   ├── auth/
 │   │   ├── AuthController.java
-│   │   ├── TransactionController.java
-│   │   ├── CategoryController.java
-│   │   ├── BudgetController.java
-│   │   └── StatsController.java
-│   ├── service/                           ← 业务逻辑层
 │   │   ├── AuthService.java
+│   │   └── dto/
+│   ├── transaction/
+│   │   ├── TransactionController.java
 │   │   ├── TransactionService.java
-│   │   ├── CategoryService.java
-│   │   ├── BudgetService.java
-│   │   └── StatsService.java
-│   ├── mapper/                            ← MyBatis Mapper 接口
-│   │   ├── UserMapper.java
 │   │   ├── TransactionMapper.java
-│   │   ├── CategoryMapper.java
-│   │   └── BudgetMapper.java
-│   ├── entity/                            ← 数据库实体（POJO）
-│   │   ├── User.java
-│   │   ├── Transaction.java
-│   │   ├── Category.java
-│   │   └── Budget.java
-│   ├── dto/                               ← 请求/响应对象
-│   │   ├── request/
-│   │   │   ├── LoginRequest.java
-│   │   │   ├── RegisterRequest.java
-│   │   │   ├── TransactionRequest.java
-│   │   │   └── BudgetRequest.java
-│   │   └── response/
-│   │       ├── ApiResponse.java
-│   │       ├── AuthResponse.java
-│   │       └── StatsResponse.java
-│   ├── config/                            ← 配置类
-│   │   ├── SecurityConfig.java
-│   │   ├── CorsConfig.java
-│   │   ├── MybatisPlusConfig.java         ← 分页插件等配置
-│   │   └── JwtConfig.java
-│   ├── security/                          ← JWT 相关
-│   │   ├── JwtTokenProvider.java
-│   │   └── JwtAuthenticationFilter.java
-│   └── exception/                         ← 异常处理
-│       ├── GlobalExceptionHandler.java
-│       └── ResourceNotFoundException.java
+│   │   ├── TransactionEntity.java
+│   │   └── dto/
+│   ├── category/                          ← 分类业务模块
+│   ├── budget/                            ← 预算业务模块
+│   └── stats/                             ← 统计查询模块
 ├── src/main/resources/
-│   ├── application.yml                    ← 主配置
-│   ├── application-dev.yml                ← 开发环境
-│   ├── application-prod.yml               ← 生产环境
-│   ├── db/
-│   │   └── schema.sql                     ← 建表 SQL 脚本
+│   ├── application.properties
+│   ├── application-local.properties
+│   ├── application-docker.properties
+│   ├── db/                                ← 版本化数据库迁移
 │   └── mapper/                            ← MyBatis XML 映射文件
-│       ├── UserMapper.xml
-│       ├── TransactionMapper.xml
-│       ├── CategoryMapper.xml
-│       └── BudgetMapper.xml
 └── src/test/
-    └── java/com/app/bookkeeping/
+    └── java/com/knzheng/bookkeeping/
 ```
 
+- Controller 只处理 HTTP 协议和参数校验，不包含业务逻辑。
+- Service 负责权限、事务和业务规则；当前不为每个 Service 机械创建接口与 `Impl`。
+- Mapper 只负责数据库访问；Entity 不直接作为 API 响应返回。
+- 请求与响应分别使用 DTO，避免数据库结构泄露到接口层。
+
 ## 7. 核心 Maven 依赖
+
+> 以下是目标依赖清单。当前 `pom.xml` 仍是项目骨架，MyBatis-Plus、Validation 和 JWT
+> 依赖将在对应功能开发时加入。
 
 ```xml
 <dependencies>
@@ -396,7 +342,7 @@ bookkeeping-api/
 
 | 周次 | 任务 | 交付物 |
 |------|------|--------|
-| 第 1 周 | 项目搭建 + 建表 + 认证 | Spring Boot + Maven 项目，执行 schema.sql 建表，JWT 登录注册 |
+| 第 1 周 | 项目搭建 + 建表 + 认证 | Spring Boot + Maven 项目，执行版本化迁移，JWT 登录注册 |
 | 第 2 周 | 记账核心流程 | Transaction CRUD + Category 管理（Mapper + XML + Service + Controller） |
 | 第 3 周 | 统计图表 + 首页 | 月度汇总 + 趋势 + 分类排行 API（复杂 SQL 写在 XML 里） |
-| 第 4-6 周 | 预算 + 导出 + 多账本 | Budget 功能 + Excel 导出 + Ledger 扩展 |
+| 第 4-6 周 | 预算 + 导出 + 稳定性 | Budget 功能 + Excel 导出 + 集成测试与性能检查 |

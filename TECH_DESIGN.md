@@ -1,7 +1,7 @@
 # 记账 App 技术设计文档
 
-> **版本**: v1.0  
-> **日期**: 2026-03-17  
+> **版本**: v1.0
+> **日期**: 2026-03-17
 > **状态**: 初稿
 
 ---
@@ -119,22 +119,12 @@
 | 持久层 | 数据库访问、查询优化 | MyBatis Mapper + XML |
 | 数据层 | 数据存储、索引、事务 | PostgreSQL |
 
-### 3.3 后端项目结构
+### 3.3 详细设计边界
 
-```
-bookkeeping-api/
-├── src/main/java/com/app/bookkeeping/
-│   ├── controller/        ← REST 接口层
-│   ├── service/           ← 业务逻辑层
-│   ├── mapper/            ← MyBatis Mapper 接口
-│   ├── entity/            ← 数据库实体（POJO）
-│   ├── dto/               ← 数据传输对象
-│   ├── config/            ← 配置类（安全、CORS等）
-│   └── exception/         ← 全局异常处理
-├── src/main/resources/
-│   └── application.yml    ← 配置文件
-└── pom.xml
-```
+- 本文档只描述系统级架构、模块边界和跨端约定。
+- 后端数据库字段、API、代码结构、依赖与迁移策略统一维护在
+  [`Backend_Design.md`](./Backend_Design.md) 中。
+- 数据库迁移脚本是实际数据库结构的最终依据。
 
 ---
 
@@ -146,7 +136,7 @@ bookkeeping-api/
 - Transaction 直接挂在 `user_id` 下，不引入 Ledger 层
 - 分类支持系统预设 + 用户自定义，用 `parent_id` 实现二级分类
 - 预算可以是总预算（`category_id` 为空）或分类预算
-- 二期扩展多账本时加 Ledger 表，做一次数据迁移即可
+- 当前范围不考虑多账本或共享账本
 
 ### 4.2 实体关系
 
@@ -161,85 +151,15 @@ Category (parent)  0..1 ◀──── 0..N Category (child)
 Category           0..1 ◀──── 0..N Budget
 ```
 
-| 关系 | User/Category 端 | 关联实体端 | 说明 |
-|------|--------------------|------------|------|
-| User ↔ Transaction | 1 | 0..N | 每笔交易必须属于一个用户，一个用户可以没有或拥有多笔交易 |
-| Category ↔ Transaction | 1 | 0..N | 每笔交易必须属于一个分类，一个分类可以关联多笔交易 |
-| User ↔ Budget | 1 | 0..N | 每条预算必须属于一个用户，一个用户可以设置多条预算 |
-| User ↔ Category | 0..1 | 0..N | 自定义分类属于一个用户；系统预设分类的 `user_id` 为 `NULL` |
-| Parent Category ↔ Child Category | 0..1 | 0..N | 一级分类没有父分类；一个父分类可以拥有多个子分类 |
-| Category ↔ Budget | 0..1 | 0..N | 分类预算关联一个分类；总预算的 `category_id` 为 `NULL` |
+- Transaction 必须关联 User 和 Category。
+- Category 可以是系统预设，也可以属于某个用户；分类允许一级父子关系。
+- Budget 必须关联 User，关联 Category 时表示分类预算，不关联时表示总预算。
+- 字段、约束、索引及迁移状态参见 [`Backend_Design.md`](./Backend_Design.md)。
 
-> 这里描述的是一期目标模型。当前 `V1__init_schema.sql` 尚未包含
-> `category.user_id`、`category.parent_id` 和 `budget.category_id`，落地时应通过新的数据库迁移补充，
-> 不应直接修改已经执行过的 V1 迁移。
+### 4.3 详细数据库设计
 
-### 4.3 User 表
-
-| 字段 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| id | UUID | PK | 主键 |
-| email | VARCHAR(255) | UNIQUE, NOT NULL | 登录邮箱 |
-| password_hash | VARCHAR(255) | NOT NULL | BCrypt 加密存储 |
-| nickname | VARCHAR(50) | NULL | 显示昵称 |
-| avatar_url | VARCHAR(500) | NULL | 头像地址 |
-| currency | VARCHAR(3) | DEFAULT 'CNY' | 默认币种 |
-| created_at | TIMESTAMP | NOT NULL | 注册时间 |
-| updated_at | TIMESTAMP | NOT NULL | 更新时间 |
-
-### 4.4 Category 表
-
-| 字段 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| id | UUID | PK | 主键 |
-| user_id | UUID | FK → User, NULL | 系统预设分类为 NULL |
-| parent_id | UUID | FK → Category, NULL | 父分类，NULL = 一级 |
-| name | VARCHAR(50) | NOT NULL | 分类名称 |
-| icon | VARCHAR(50) | NULL | 图标标识 |
-| type | VARCHAR(10) | NOT NULL | `income` / `expense` |
-| is_default | BOOLEAN | DEFAULT false | 是否系统预设 |
-| sort_order | INTEGER | DEFAULT 0 | 排序顺序 |
-
-### 4.5 Transaction 表
-
-| 字段 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| id | UUID | PK | 主键 |
-| user_id | UUID | FK → User, NOT NULL | 所属用户 |
-| category_id | UUID | FK → Category, NOT NULL | 所属分类 |
-| amount | DECIMAL(12,2) | NOT NULL | 金额，精确到分 |
-| type | VARCHAR(10) | NOT NULL | `income` / `expense` |
-| note | VARCHAR(500) | NULL | 备注 |
-| tags | JSONB | NULL | 标签数组 |
-| date | DATE | NOT NULL | 交易日期 |
-| created_at | TIMESTAMP | NOT NULL | 创建时间 |
-| updated_at | TIMESTAMP | NOT NULL | 更新时间 |
-
-**核心索引：**
-
-```sql
-CREATE INDEX idx_transaction_user_date ON transaction(user_id, date DESC);
-```
-
-### 4.6 Budget 表
-
-| 字段 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| id | UUID | PK | 主键 |
-| user_id | UUID | FK → User, NOT NULL | 所属用户 |
-| category_id | UUID | FK → Category, NULL | NULL = 总预算 |
-| month | VARCHAR(7) | NOT NULL | 格式：`2026-03` |
-| limit_amount | DECIMAL(12,2) | NOT NULL | 预算上限 |
-| created_at | TIMESTAMP | NOT NULL | 创建时间 |
-
-### 4.7 多账本扩展方案（二期）
-
-二期需要多账本时，新增以下表：
-
-- **Ledger 表**：`id`, `name`, `icon`, `is_default`, `created_by`, `created_at`
-- **UserLedger 中间表**：`user_id`, `ledger_id`, `role`（owner / member）
-- Transaction、Category、Budget 添加 `ledger_id` 字段
-- **数据迁移**：为每个用户创建默认 Ledger，将历史数据关联过去
+完整字段、约束、索引和迁移计划统一参见
+[`Backend_Design.md`](./Backend_Design.md#2-数据模型设计)。
 
 ---
 
@@ -253,57 +173,18 @@ CREATE INDEX idx_transaction_user_date ON transaction(user_id, date DESC);
 - **分页**：`?page=0&size=20`，默认每页 20 条
 - **日期格式**：ISO 8601（`yyyy-MM-dd`）
 
-### 5.2 认证接口
+### 5.2 API 模块边界
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/auth/register` | 用户注册 |
-| POST | `/api/auth/login` | 登录，返回 JWT |
-| POST | `/api/auth/refresh` | 刷新 Token |
-| GET | `/api/auth/me` | 获取当前用户信息 |
+| 模块 | 职责 |
+|------|------|
+| Auth | 注册、登录、刷新令牌和当前用户信息 |
+| Transaction | 交易增删改查、筛选和分页 |
+| Category | 系统分类读取与自定义分类管理 |
+| Stats | 月度汇总、趋势和分类排行 |
+| Budget | 总预算与分类预算管理 |
 
-### 5.3 交易接口
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/transactions` | 新增一笔交易 |
-| GET | `/api/transactions` | 查询交易列表（支持筛选、分页） |
-| GET | `/api/transactions/{id}` | 查询单笔交易详情 |
-| PUT | `/api/transactions/{id}` | 修改交易 |
-| DELETE | `/api/transactions/{id}` | 删除交易 |
-
-**查询参数示例：**
-
-```
-GET /api/transactions?startDate=2026-03-01&endDate=2026-03-31&type=expense&categoryId=xxx&keyword=外卖
-```
-
-### 5.4 分类接口
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/categories` | 获取所有分类（系统 + 自定义） |
-| POST | `/api/categories` | 新增自定义分类 |
-| PUT | `/api/categories/{id}` | 修改分类 |
-| DELETE | `/api/categories/{id}` | 删除自定义分类 |
-
-### 5.5 统计接口
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/stats/summary` | 月度收支总览（总收入、总支出、结余） |
-| GET | `/api/stats/trend` | 收支趋势（按日/月） |
-| GET | `/api/stats/category-ranking` | 分类排行榜 |
-| GET | `/api/stats/budget-progress` | 预算执行进度 |
-
-### 5.6 预算接口
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/budgets` | 获取当月预算列表 |
-| POST | `/api/budgets` | 设置预算 |
-| PUT | `/api/budgets/{id}` | 修改预算 |
-| DELETE | `/api/budgets/{id}` | 删除预算 |
+具体端点、查询参数、DTO 和错误响应统一参见
+[`Backend_Design.md`](./Backend_Design.md#3-api-接口设计)。
 
 ---
 
@@ -355,55 +236,22 @@ GET /api/transactions?startDate=2026-03-01&endDate=2026-03-31&type=expense&categ
 
 ## 7. 安全设计
 
-### 7.1 认证机制
-
-- 采用 JWT（JSON Web Token）无状态认证
-- Access Token 有效期 2 小时，Refresh Token 有效期 7 天
-- 密码使用 BCrypt 加密存储，永远不存明文
-- 二期可支持 OAuth2 第三方登录（Google、GitHub）
-
-### 7.2 数据安全
-
-- 所有 API 接口必须验证用户身份，确保只能访问自己的数据
-- 服务层每次查询都加 `user_id` 过滤，防止越权访问
-- 输入数据全部做参数校验（`@Valid` + DTO）
-- 金额字段使用 `DECIMAL` 类型，避免浮点数精度问题
-
-### 7.3 接口安全
-
-- CORS 白名单限制允许的前端域名
-- Rate Limiting：单 IP 每分钟最多 60 次请求
-- SQL 注入防护：MyBatis `#{}` 参数化查询自动防御（禁止用 `${}` 拼接用户输入）
-- XSS 防护：前端输出转义 + CSP Header
+- API 必须认证用户身份，并按 `user_id` 隔离数据访问。
+- 密码只保存安全哈希，金额使用精确数值类型，请求和响应执行边界校验。
+- 前后端共同落实 CORS、XSS、注入与速率限制等基础防护。
+- JWT 生命周期、过滤器、异常响应和具体安全配置参见
+  [`Backend_Design.md`](./Backend_Design.md#4-安全设计)。
 
 ---
 
 ## 8. 性能优化策略
 
-### 8.1 数据库层
-
-| 阶段 | 数据量 | 策略 | 复杂度 |
-|------|--------|------|--------|
-| 一 | < 1000 万行 | 复合索引（`user_id` + `date`） | 低 |
-| 二 | 1000万 ~ 1亿 | 读写分离（主从复制） | 中 |
-| 三 | 1亿 ~ 10亿 | PostgreSQL 按月分区表 | 中 |
-| 四 | 10亿+ | 按 `user_id` 分库分表 | 高 |
-| 五 | 长期运营 | 冷热数据分离（归档历史数据） | 中 |
-
-> 一期只需关注阶段一，对大多数产品而言索引优化已经足够。
-
-### 8.2 应用层
-
-- **统计数据缓存**：月度汇总、分类排行等计算结果缓存至 Redis，新增交易时失效
-- **分页查询**：所有列表接口强制分页，默认 20 条/页
-- **懒加载**：图表数据在用户切换到图表页时才加载
-
-### 8.3 前端
-
-- **代码分割**：`React.lazy()` 按页面懒加载
-- **虚拟列表**：交易列表使用 `react-window` 虚拟滚动
-- **防抖搜索**：关键词搜索 300ms 防抖
-- **图表优化**：大数据量时后端聚合，前端只渲染结果
+- 一期优先建立符合查询模式的复合索引，并对所有明细查询分页。
+- 统计聚合在后端完成，前端只接收展示所需的数据。
+- 前端按路由拆分代码，图表和长列表按实际数据量按需优化。
+- 缓存、分区、读写分离和分片只在监控数据证明有需要时引入。
+- 数据规模分级策略及后端实现细节参见
+  [`Backend_Design.md`](./Backend_Design.md#5-性能优化路线按数据量递进)。
 
 ---
 
@@ -428,7 +276,7 @@ GET /api/transactions?startDate=2026-03-01&endDate=2026-03-31&type=expense&categ
 
 ### 9.3 环境划分
 
-- **development**：本地开发，H2 内存数据库
+- **development**：本地开发，连接 Docker 中的 PostgreSQL
 - **staging**：测试环境，连接测试 PostgreSQL
 - **production**：生产环境，托管 PostgreSQL + Redis
 
@@ -448,12 +296,11 @@ GET /api/transactions?startDate=2026-03-01&endDate=2026-03-31&type=expense&categ
 
 - 预算管理功能（总预算 + 分类预算 + 超支提醒）
 - 数据导出（Excel 格式）
-- 多账本支持（Ledger 表 + 账本切换）
 - 备注智能推荐（基于历史备注）
+- 集成测试与性能检查
 
 ### 三期：扩展（第 7-10 周）
 
-- 多人共享账本（家庭/情侣模式）
 - 定时记账（周期性交易自动记录）
 - 账单提醒（每日提醒记账）
 - PWA 支持（离线访问 + 添加到主屏幕）
