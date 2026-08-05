@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.knzheng.bookkeeping.transaction.TransactionMapper">
+
+    <sql id="transactionDetailColumns">
+        t.id,
+        t.user_id,
+        t.category_id,
+        t.amount,
+        t.type,
+        t.note,
+        t.date,
+        t.created_at,
+        t.updated_at,
+        c.code AS category_code,
+        c.name AS category_name,
+        c.icon AS category_icon,
+        c.type AS category_type
+    </sql>
+
+    <select id="selectPageByFilter"
+            resultType="com.knzheng.bookkeeping.transaction.TransactionRow">
+        SELECT
+        <include refid="transactionDetailColumns"/>
+        FROM transactions t
+        INNER JOIN category c ON c.id = t.category_id
+        WHERE t.user_id = #{userId}
+        <if test="startDate != null">
+            AND t.date &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND t.date &lt;= #{endDate}
+        </if>
+        <if test="type != null">
+            AND t.type = #{type}
+        </if>
+        <if test="categoryId != null">
+            AND t.category_id = #{categoryId}
+        </if>
+        <if test="keyword != null">
+            AND (
+                LOWER(COALESCE(t.note, '')) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                OR LOWER(c.name) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+            )
+        </if>
+        ORDER BY t.date DESC, t.created_at DESC, t.id DESC
+    </select>
+
+    <select id="selectDetailById"
+            resultType="com.knzheng.bookkeeping.transaction.TransactionRow">
+        SELECT
+        <include refid="transactionDetailColumns"/>
+        FROM transactions t
+        INNER JOIN category c ON c.id = t.category_id
+        WHERE t.id = #{id}
+          AND t.user_id = #{userId}
+    </select>
+
+</mapper>

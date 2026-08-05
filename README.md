@@ -2,8 +2,8 @@
 
 个人记账应用。
 
-- **后端**:Spring Boot 3.5 + Java 17（`bookkeeping-api/`）
-- **前端**:React 18 + Vite + Tailwind（`front_end/`）
+- **后端**：Spring Boot 3.5 + Java 17（`bookkeeping-api/`）
+- **前端**：React 18 + Vite + Tailwind（`front_end/`）
 - **数据库**: PostgreSQL 16（通过 Docker 运行）
 
 ---
@@ -49,7 +49,7 @@ java -version   # 显示 17 即成功
 docker compose up -d db
 ```
 
-- 首次启动会自动拉取镜像，并执行 `bookkeeping-api/src/main/resources/db/V1__init_schema.sql` 建表。
+- 这一步只启动 PostgreSQL；后端启动时会由 Flyway 自动执行尚未应用的数据库迁移。
 - 数据库监听 `localhost:5432`，库名 / 用户 / 密码均为 `bookkeeping`。
 
 确认已就绪（状态为 `healthy`）:
@@ -68,7 +68,8 @@ SPRING_PROFILES_ACTIVE=local ./mvnw spring-boot:run
 ```
 
 - 后端运行在 `http://localhost:8080`。
-- 已启用 `devtools`,修改代码会自动热重载。
+- 首次启动会自动执行 `bookkeeping-api/src/main/resources/db/` 下的 Flyway 迁移。
+- 已启用 `devtools`，修改代码会自动热重载。
 - 在 IntelliJ 的 Run Configuration 中添加环境变量 `SPRING_PROFILES_ACTIVE=local`；本机数据库地址、用户名和密码可按需通过 `DB_URL`、`DB_USERNAME`、`DB_PASSWORD` 覆盖。
 
 #### 一键容器运行：数据库 + 后端
@@ -94,6 +95,7 @@ npm run dev
 ```
 
 - 前端运行在 `http://localhost:5173`。
+- 开发服务器会把 `/api` 请求代理到 `http://localhost:8080`。
 
 ---
 
@@ -122,5 +124,5 @@ docker compose down -v      # 删除容器和数据（彻底重置）
 docker exec -it bookkeeping-db psql -U bookkeeping -d bookkeeping
 ```
 
-> ⚠️ 建表脚本只在数据卷为空的**首次启动**时执行。修改 `V1__init_schema.sql` 后，需执行
-> `docker compose down -v && docker compose up -d db` 才会重新建表。
+> 数据库由 Flyway 管理。已经执行过的 `V1`、`V2` 等迁移不要修改；后续结构调整请新增
+> `V3__说明.sql` 这类迁移文件，后端下次启动时会自动应用。

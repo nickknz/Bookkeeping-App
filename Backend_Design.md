@@ -45,7 +45,7 @@
 ### 2.1 设计原则
 
 - **一期保持单账本模型**：不创建 Ledger 或 UserLedger，Transaction 直接关联 `user_id`
-- **建表方式**：MyBatis 不会自动建表，使用 SQL 脚本手动建表（放在 `src/main/resources/db/` 目录下）
+- **建表方式**：MyBatis 不负责建表；Flyway 在应用启动时按版本执行 `src/main/resources/db/` 下的迁移脚本
 
 ### 2.2 一期核心表（4 张）
 
@@ -75,7 +75,7 @@
 | is_default | BOOLEAN | DEFAULT false | 是否为系统预设分类 |
 | sort_order | INTEGER | DEFAULT 0 | 展示顺序 |
 
-### Transaction 表
+### Transaction 表（物理表名：`transactions`）
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
@@ -93,7 +93,7 @@
 **核心索引：**
 
 ```sql
-CREATE INDEX idx_transaction_user_date ON transaction(user_id, date DESC);
+CREATE INDEX idx_transactions_user_date ON transactions(user_id, date DESC);
 ```
 
 ### Budget 表
@@ -113,8 +113,8 @@ CREATE INDEX idx_transaction_user_date ON transaction(user_id, date DESC);
 ## 2.3 数据库迁移策略
 
 - 数据库结构以 [`bookkeeping-api/src/main/resources/db/`](./bookkeeping-api/src/main/resources/db/) 下的迁移脚本为准，文档不复制完整建表 SQL。
-- `V1__init_schema.sql` 是当前已落地的基础模型；已经执行或共享的迁移不得直接修改。
-- 新字段、约束和索引通过后续版本迁移逐步加入，例如 `V2__extend_categories_and_budgets.sql`。
+- `V1__init_schema.sql` 创建当前已落地的表结构、约束和索引，`V2__seed_default_categories.sql` 只初始化系统默认分类。
+- 已经执行或共享的迁移不得直接修改；新字段、约束和索引通过新的版本迁移逐步加入。
 - 本节字段表描述目标一期模型；实现状态与目标模型的差异必须在迁移任务中明确记录。
 
 ---
@@ -151,12 +151,14 @@ Category           0..1 ◀──── 0..N Budget
 ### 3.1 基础约定
 
 - 基础路径：`/api`
-- 认证：Bearer Token（JWT）
+- 认证目标：Bearer Token（JWT）。当前一期联调暂用固定 Demo 用户，仅限开发环境，不能用于生产部署。
 - 响应格式：`{ "code": 200, "message": "success", "data": {} }`
 - 分页：`?page=0&size=20`，默认每页 20 条（使用 MyBatis-Plus 的 Page 分页）
 - 日期格式：ISO 8601（`yyyy-MM-dd`）
 
 ### 3.2 认证接口
+
+> 尚未实现，属于 Transaction CRUD 之后的下一阶段。
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -166,6 +168,8 @@ Category           0..1 ◀──── 0..N Budget
 | GET | `/api/auth/me` | 获取当前用户信息 |
 
 ### 3.3 交易接口
+
+> 以下五个接口已实现；所有读写都会按当前用户 ID 隔离。
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -178,6 +182,8 @@ Category           0..1 ◀──── 0..N Budget
 查询参数：`?startDate=2026-03-01&endDate=2026-03-31&type=expense&categoryId=xxx&keyword=外卖`
 
 ### 3.4 分类接口
+
+> 当前已实现分类读取；自定义分类写接口留到分类管理阶段。
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -275,8 +281,7 @@ bookkeeping-api/
 
 ## 7. 核心 Maven 依赖
 
-> 以下是目标依赖清单。当前 `pom.xml` 仍是项目骨架，MyBatis-Plus、Validation 和 JWT
-> 依赖将在对应功能开发时加入。
+> MyBatis-Plus、Validation、Flyway 和 PostgreSQL 已落地；JWT 仍是认证阶段的目标依赖。
 
 ```xml
 <dependencies>
@@ -306,6 +311,12 @@ bookkeeping-api/
         <groupId>org.postgresql</groupId>
         <artifactId>postgresql</artifactId>
         <scope>runtime</scope>
+    </dependency>
+
+    <!-- 数据库版本迁移 -->
+    <dependency>
+        <groupId>org.flywaydb</groupId>
+        <artifactId>flyway-core</artifactId>
     </dependency>
 
     <!-- JWT -->
