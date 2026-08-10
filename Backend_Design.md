@@ -36,7 +36,7 @@
 - 数据结构高度规整（每笔交易固定几个字段），关系型天然适合
 - 核心场景是聚合计算（SUM / GROUP BY / 窗口函数），SQL 有几十年优化积累
 - 金额数据需要 ACID 事务保证一致性，NoSQL 大多是最终一致性
-- 实体间关系明确（Transaction → Category，Budget → Category），JOIN 一句话搞定
+- 实体间关系明确（Transaction → User、Category，Budget → User），JOIN 一句话搞定
 
 ---
 
@@ -67,12 +67,11 @@
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
 | id | INTEGER | PK, IDENTITY | 主键，与当前 V1 保持一致 |
-| user_id | UUID | FK → User, NULL | 自定义分类所属用户；系统预设分类为 NULL |
-| parent_id | INTEGER | FK → Category, NULL | 父分类；NULL 表示一级分类 |
+| code | VARCHAR(50) | UNIQUE, NOT NULL | 稳定分类编码，供前后端识别 |
 | name | VARCHAR(50) | NOT NULL | 分类名称 |
 | icon | VARCHAR(50) | NULL | 图标 name |
 | type | VARCHAR(10) | NOT NULL | `income` / `expense` |
-| is_default | BOOLEAN | DEFAULT false | 是否为系统预设分类 |
+| is_default | BOOLEAN | DEFAULT false | 是否为全局系统预设分类 |
 | sort_order | INTEGER | DEFAULT 0 | 展示顺序 |
 
 ### Transaction 表（物理表名：`transactions`）
@@ -102,18 +101,19 @@ CREATE INDEX idx_transactions_user_date ON transactions(user_id, date DESC);
 |------|------|------|------|
 | id | UUID | PK | 主键 |
 | user_id | UUID | FK → User, NOT NULL | 所属用户 |
-| category_id | INTEGER | FK → Category, NULL | 分类预算关联分类；总预算为 NULL |
 | month | DATE | NOT NULL | 每月1号，如 `2026-03-01` |
 | limit_amount | DECIMAL(12,2) | NOT NULL | 预算上限 |
 | created_at | TIMESTAMP | NOT NULL | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL | 更新时间 |
+
+每个用户每月最多一条预算，数据库使用 `UNIQUE (user_id, month)` 保证唯一性。
 
 ---
 
 ## 2.3 数据库迁移策略
 
 - 数据库结构以 [`bookkeeping-api/src/main/resources/db/`](./bookkeeping-api/src/main/resources/db/) 下的迁移脚本为准，文档不复制完整建表 SQL。
-- `V1__init_schema.sql` 创建当前已落地的表结构、约束和索引，`V2__seed_default_categories.sql` 只初始化系统默认分类。
+- `V1__init_schema.sql` 创建当前已落地的表结构、约束和索引，`V2__seed_default_categories.sql` 只初始化全局系统预设分类。
 - 已经执行或共享的迁移不得直接修改；新字段、约束和索引通过新的版本迁移逐步加入。
 - 本节字段表描述目标一期模型；实现状态与目标模型的差异必须在迁移任务中明确记录。
 
@@ -126,10 +126,6 @@ User      1 ───── 0..N Transaction
 Category  1 ───── 0..N Transaction
 
 User      1 ───── 0..N Budget
-
-User              0..1 ◀──── 0..N Category
-Category (parent)  0..1 ◀──── 0..N Category (child)
-Category           0..1 ◀──── 0..N Budget
 ```
 
 | 关系 | 说明 |
@@ -137,12 +133,9 @@ Category           0..1 ◀──── 0..N Budget
 | User ↔ Transaction | 每笔交易必须属于一个用户；一个用户可以拥有多笔交易 |
 | Category ↔ Transaction | 每笔交易必须属于一个分类；一个分类可以关联多笔交易 |
 | User ↔ Budget | 每条预算必须属于一个用户；一个用户可以设置多条预算 |
-| User ↔ Category | 自定义分类属于一个用户；系统预设分类的 `user_id` 为 `NULL` |
-| Parent Category ↔ Child Category | 子分类最多有一个父分类；一个父分类可以拥有多个子分类 |
-| Category ↔ Budget | 分类预算关联一个分类；总预算的 `category_id` 为 `NULL` |
 
-> 当前 `V1__init_schema.sql` 尚未包含 `category.user_id`、`category.parent_id`、
-> `budget.category_id` 等扩展字段，后续应通过新的迁移补充。
+> Category 是全局共享的系统预设一级分类，不属于任何用户，也不支持父子层级。
+> Budget 只表示用户的月度总预算，不按分类拆分。
 
 ---
 
@@ -183,14 +176,11 @@ Category           0..1 ◀──── 0..N Budget
 
 ### 3.4 分类接口
 
-> 当前已实现分类读取；自定义分类写接口留到分类管理阶段。
+> Category 是全局只读数据，一期不提供用户新增、修改或删除分类的接口。
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/categories` | 获取所有分类（系统 + 自定义） |
-| POST | `/api/categories` | 新增自定义分类 |
-| PUT | `/api/categories/{id}` | 修改分类 |
-| DELETE | `/api/categories/{id}` | 删除自定义分类 |
+| GET | `/api/categories` | 获取全局系统分类，可按收支类型过滤 |
 
 ### 3.5 统计接口
 
@@ -205,10 +195,10 @@ Category           0..1 ◀──── 0..N Budget
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/budgets` | 获取当月预算列表 |
-| POST | `/api/budgets` | 设置预算 |
-| PUT | `/api/budgets/{id}` | 修改预算 |
-| DELETE | `/api/budgets/{id}` | 删除预算 |
+| GET | `/api/budgets` | 获取当月月度预算 |
+| POST | `/api/budgets` | 设置月度预算 |
+| PUT | `/api/budgets/{id}` | 修改月度预算 |
+| DELETE | `/api/budgets/{id}` | 删除月度预算 |
 
 ---
 
@@ -216,7 +206,7 @@ Category           0..1 ◀──── 0..N Budget
 
 - JWT 无状态认证：Access Token 2h，Refresh Token 7d
 - 密码 BCrypt 加密存储
-- 所有 API 验证用户身份，服务层每次查询加 `user_id` 过滤防越权
+- 所有 API 验证用户身份；Transaction、Budget 等用户私有资源按 `user_id` 隔离，全局 Category 读取不按用户过滤
 - 输入校验：`@Valid` + DTO
 - 金额用 `DECIMAL` 类型，避免浮点精度问题
 - CORS 白名单限制前端域名
@@ -354,6 +344,6 @@ bookkeeping-api/
 | 周次 | 任务 | 交付物 |
 |------|------|--------|
 | 第 1 周 | 项目搭建 + 建表 + 认证 | Spring Boot + Maven 项目，执行版本化迁移，JWT 登录注册 |
-| 第 2 周 | 记账核心流程 | Transaction CRUD + Category 管理（Mapper + XML + Service + Controller） |
+| 第 2 周 | 记账核心流程 | Transaction CRUD + 全局分类读取与交易分类校验 |
 | 第 3 周 | 统计图表 + 首页 | 月度汇总 + 趋势 + 分类排行 API（复杂 SQL 写在 XML 里） |
 | 第 4-6 周 | 预算 + 导出 + 稳定性 | Budget 功能 + Excel 导出 + 集成测试与性能检查 |
