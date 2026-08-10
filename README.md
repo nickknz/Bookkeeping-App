@@ -12,6 +12,7 @@
 
 - [`TECH_DESIGN.md`](./TECH_DESIGN.md)：系统级架构、产品范围、前后端边界与路线图。
 - [`Backend_Design.md`](./Backend_Design.md)：数据库、API、安全、后端代码结构与依赖的详细设计。
+- [`DATABASE_ERD.md`](./DATABASE_ERD.md)：当前数据库表、字段、约束与实体关系图。
 
 数据库字段和 API 细节以后端设计文档为准，实际数据库结构以版本化迁移脚本为准。
 

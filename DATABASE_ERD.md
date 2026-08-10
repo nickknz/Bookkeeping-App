@@ -1,18 +1,18 @@
-# Bookkeeping 数据库 UML
+# Bookkeeping 数据库 ERD
 
-> 本图描述当前已经落地的数据库结构，以
+> 本文档展示当前数据库实体关系图（Entity-Relationship Diagram，ERD），以
 > [`V1__init_schema.sql`](./bookkeeping-api/src/main/resources/db/V1__init_schema.sql)
 > 和 [`V2__seed_default_categories.sql`](./bookkeeping-api/src/main/resources/db/V2__seed_default_categories.sql)
 > 为准。
 
-## 完整 UML 图
+## 完整 ER 图
 
-![Bookkeeping 数据库 UML](./docs/database-uml.png)
+![Bookkeeping 数据库实体关系图](./docs/database-erd.png)
 
 如果 Markdown 查看器没有显示图片，可以直接打开：
-[`docs/database-uml.png`](./docs/database-uml.png)
+[`docs/database-erd.png`](./docs/database-erd.png)
 
-可编辑的矢量版本：[`docs/database-uml.svg`](./docs/database-uml.svg)
+可编辑的矢量版本：[`docs/database-erd.svg`](./docs/database-erd.svg)
 
 ## 纯文本关系
 
