@@ -1,9 +1,9 @@
-import { getCategoryById } from "../data/categories";
+import { getCategoryByIcon } from "../data/categories";
 import { money } from "../data/format";
 import CategoryIcon from "./CategoryIcon";
 
 export default function TransactionItem({ transaction, showBorder = false }) {
-  const category = getCategoryById(transaction.catId);
+  const category = transaction.category || getCategoryByIcon(transaction.categoryIcon);
   const income = transaction.type === "income";
 
   return (
@@ -16,7 +16,7 @@ export default function TransactionItem({ transaction, showBorder = false }) {
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] transition-transform duration-200 group-hover:scale-[1.04]"
         style={{ background: category.bg }}
       >
-        <CategoryIcon id={transaction.catId} color={category.color} />
+        <CategoryIcon id={category.icon} color={category.color} />
       </div>
 
       <div className="min-w-0 flex-1">

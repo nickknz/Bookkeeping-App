@@ -1,6 +1,6 @@
-# 记账 App（BeeCount 风格）
+# 小豆记账前端
 
-基于 React + Vite 的记账应用前端原型，UI 参考蜜蜂记账。
+基于 React、Vite 和 Tailwind CSS 的记账应用前端，已接入 Spring Boot 分类与交易接口。
 
 ## 快速开始
 
@@ -14,13 +14,16 @@ npm run dev
 # 3. 打开浏览器访问 http://localhost:5173
 ```
 
+请先确保后端运行在 `http://localhost:8080`；Vite 会把 `/api` 请求代理到后端。
+
 ## 项目结构
 
 ```
 src/
 ├── components/           可复用组件
 │   ├── CategoryIcon.jsx    分类 SVG 图标
-│   ├── TabBar.jsx          底部导航栏
+│   ├── DataState.jsx       加载与错误状态
+│   ├── MainLayout.jsx      数据加载和页面布局
 │   └── TransactionItem.jsx 单条交易记录
 ├── pages/                页面组件
 │   ├── HomePage.jsx        首页（交易流水）
@@ -29,9 +32,10 @@ src/
 │   ├── ProfilePage.jsx     个人中心页
 │   └── AddPage.jsx         记账页（全屏弹出）
 ├── data/                 数据层
-│   ├── categories.js       分类定义
-│   ├── mockTransactions.js Mock 交易数据
+│   ├── categories.js       分类视觉配置
 │   └── dateUtils.js        日期工具函数
+├── api/
+│   └── client.js           分类与交易 API 客户端
 ├── App.jsx               主入口
 ├── App.css               全局样式
 └── main.jsx              挂载点
@@ -41,13 +45,14 @@ src/
 
 - React 18
 - Vite 6
-- 纯 CSS（inline styles，无第三方 UI 库）
+- Tailwind CSS 4
+- React Router 7
+- Recharts 3
 
 ## 后续计划
 
-- [ ] 接入 Spring Boot 后端 API
-- [ ] 替换 mock 数据为真实数据
-- [ ] 添加 Tailwind CSS
-- [ ] 添加 Recharts 图表库
-- [ ] 路由（React Router）
-- [ ] 状态管理（Zustand）
+- [x] 接入分类与交易 API
+- [x] 首页和图表使用真实交易数据
+- [x] 添加 Tailwind CSS、Recharts 和路由
+- [ ] 接入用户认证
+- [ ] 实现账本与预算功能

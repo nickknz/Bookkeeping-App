@@ -1,13 +1,15 @@
+import { formatLocalDate } from "./month";
+
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
 export function formatDateLabel(dateStr) {
   const d = new Date(dateStr + "T00:00:00");
   const now = new Date();
-  const yesterday = new Date();
+  const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
 
-  if (dateStr === now.toISOString().slice(0, 10)) return "今天";
-  if (dateStr === yesterday.toISOString().slice(0, 10)) return "昨天";
+  if (dateStr === formatLocalDate(now)) return "今天";
+  if (dateStr === formatLocalDate(yesterday)) return "昨天";
   return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 

@@ -22,53 +22,56 @@ import {
   Utensils,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import { PageErrorState, PageLoadingState } from "../components/DataState";
 import CategoryIcon from "../components/CategoryIcon";
-import { getCategoryById } from "../data/categories";
 import { money, money0 } from "../data/format";
 
 const CHART_COLORS = ["#e6a900", "#e6a23c", "#678bd6", "#df716a", "#8a72c6", "#5ba6a6", "#a68668", "#83928b"];
 
 export default function ChartPage() {
-  const { transactions } = useOutletContext();
+  const { transactions, month, loading, error, retry } = useOutletContext();
 
   const analytics = useMemo(() => {
-    const expenses = transactions.filter((transaction) => transaction.date.startsWith("2026-03") && transaction.type === "expense");
+    const expenses = transactions.filter((transaction) => transaction.date.startsWith(month.key) && transaction.type === "expense");
     const total = expenses.reduce((sum, transaction) => sum + transaction.amount, 0);
 
-    const categoryMap = expenses.reduce((result, transaction) => {
-      result[transaction.catId] = (result[transaction.catId] || 0) + transaction.amount;
-      return result;
-    }, {});
+    const categoryMap = new Map();
+    expenses.forEach((transaction) => {
+      const current = categoryMap.get(transaction.categoryId);
+      categoryMap.set(transaction.categoryId, {
+        ...transaction.category,
+        amount: (current?.amount || 0) + transaction.amount,
+      });
+    });
 
-    const ranked = Object.entries(categoryMap)
-      .map(([id, amount], index) => ({
-        ...getCategoryById(id),
-        id,
-        amount,
-        percentage: total > 0 ? (amount / total) * 100 : 0,
+    const ranked = [...categoryMap.values()]
+      .map((category, index) => ({
+        ...category,
+        percentage: total > 0 ? (category.amount / total) * 100 : 0,
         chartColor: CHART_COLORS[index % CHART_COLORS.length],
       }))
       .sort((a, b) => b.amount - a.amount)
       .map((item, index) => ({ ...item, chartColor: CHART_COLORS[index % CHART_COLORS.length] }));
 
-    const dateMap = expenses.reduce((result, transaction) => {
-      result[transaction.date] = (result[transaction.date] || 0) + transaction.amount;
-      return result;
-    }, {});
+    const dateMap = new Map();
+    expenses.forEach((transaction) => {
+      dateMap.set(transaction.date, (dateMap.get(transaction.date) || 0) + transaction.amount);
+    });
 
-    const trend = Object.entries(dateMap)
+    const trend = [...dateMap.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, amount]) => ({ date: `${Number(date.slice(8))}日`, amount }));
 
     return { expenses, total, ranked, trend };
-  }, [transactions]);
+  }, [month.key, transactions]);
 
   const largestTransaction = Math.max(...analytics.expenses.map((transaction) => transaction.amount), 0);
+  const largestTransactionCategory = analytics.expenses.find((transaction) => transaction.amount === largestTransaction)?.category?.name;
   const metrics = [
-    { label: "本月总支出", value: `¥${money(analytics.total)}`, note: "较上月下降 8.4%", icon: CircleDollarSign, tone: "emerald" },
-    { label: "日均支出", value: `¥${money(analytics.total / 19)}`, note: "按 19 个记账日计算", icon: TrendingDown, tone: "blue" },
-    { label: "单笔最高", value: `¥${money(largestTransaction)}`, note: "住房 · 月租", icon: ReceiptText, tone: "amber" },
-    { label: "支出笔数", value: `${analytics.expenses.length} 笔`, note: "覆盖 9 个消费分类", icon: ListChecks, tone: "violet" },
+    { label: "本月总支出", value: `¥${money(analytics.total)}`, note: "数据已与账本同步", icon: CircleDollarSign, tone: "emerald" },
+    { label: "日均支出", value: `¥${money(analytics.total / month.elapsedDays)}`, note: `按本月前 ${month.elapsedDays} 天计算`, icon: TrendingDown, tone: "blue" },
+    { label: "单笔最高", value: `¥${money(largestTransaction)}`, note: largestTransactionCategory || "暂无支出记录", icon: ReceiptText, tone: "amber" },
+    { label: "支出笔数", value: `${analytics.expenses.length} 笔`, note: `覆盖 ${analytics.ranked.length} 个消费分类`, icon: ListChecks, tone: "violet" },
   ];
 
   const toneClasses = {
@@ -77,6 +80,9 @@ export default function ChartPage() {
     amber: "bg-[#fbf3e5] text-[#b77a25]",
     violet: "bg-[#f1edfa] text-[#8067b6]",
   };
+
+  if (loading) return <PageLoadingState />;
+  if (error) return <PageErrorState message={error} onRetry={retry} />;
 
   return (
     <div className="page-enter mx-auto max-w-[1460px] px-4 pt-[92px] sm:px-6 lg:px-9 lg:py-9 xl:px-12">
@@ -90,7 +96,7 @@ export default function ChartPage() {
           className="flex h-10 items-center gap-2 rounded-xl border border-[#e5e6e1] bg-white px-3.5 text-xs font-semibold text-[#70706a] shadow-sm"
         >
           <CalendarDays size={15} className="text-[#b37800]" />
-          2026 年 3 月
+          {month.label}
           <ChevronDown size={14} className="text-[#9d9d96]" />
         </button>
       </PageHeader>
@@ -128,7 +134,7 @@ export default function ChartPage() {
             </div>
           </div>
 
-          <div className="h-[300px] w-full" role="img" aria-label="3 月每日支出趋势图">
+          <div className="h-[300px] w-full" role="img" aria-label={`${month.month} 月每日支出趋势图`}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={analytics.trend} margin={{ top: 8, right: 4, left: -16, bottom: 0 }}>
                 <defs>
@@ -155,8 +161,12 @@ export default function ChartPage() {
               <TrendingDown size={17} />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-bold text-[#464642]">消费趋势整体平稳</div>
-              <div className="mt-1 text-[10px] leading-relaxed text-[#92928b]">15 日因房租产生明显峰值，其余日期日均支出低于 ¥300。</div>
+              <div className="text-xs font-bold text-[#464642]">{analytics.expenses.length ? "消费趋势已更新" : "等待第一笔支出"}</div>
+              <div className="mt-1 text-[10px] leading-relaxed text-[#92928b]">
+                {analytics.expenses.length
+                  ? `本月已有 ${analytics.expenses.length} 笔支出，图表按交易日期展示真实变化。`
+                  : "记录支出后，这里会展示每天的金额变化。"}
+              </div>
             </div>
           </div>
         </section>
@@ -167,7 +177,7 @@ export default function ChartPage() {
             <p className="mt-1 text-[11px] text-[#9a9a93]">本月支出构成</p>
           </div>
 
-          <div className="relative mx-auto h-[224px] max-w-[280px]" role="img" aria-label="3 月支出分类占比环形图">
+          <div className="relative mx-auto h-[224px] max-w-[280px]" role="img" aria-label={`${month.month} 月支出分类占比环形图`}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={analytics.ranked} dataKey="amount" nameKey="name" cx="50%" cy="50%" innerRadius={67} outerRadius={88} paddingAngle={3} strokeWidth={0}>
@@ -187,7 +197,7 @@ export default function ChartPage() {
               <div key={item.id} className="group flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-[#fafaf8]">
                 <div className="w-4 text-[10px] font-bold text-[#c4c4bd]">{String(index + 1).padStart(2, "0")}</div>
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: item.bg }}>
-                  <CategoryIcon id={item.id} color={item.color} />
+                  <CategoryIcon id={item.icon} color={item.color} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-3">
@@ -207,7 +217,11 @@ export default function ChartPage() {
 
           <div className="mt-4 flex items-center gap-3 rounded-2xl bg-[#fff7e9] p-3.5 text-[#7c5c28]">
             <Utensils size={17} className="shrink-0" />
-            <p className="text-[10px] leading-relaxed">剔除房租后，餐饮是最主要的日常消费，占非固定支出的 26.8%。</p>
+            <p className="text-[10px] leading-relaxed">
+              {analytics.ranked.length
+                ? `${analytics.ranked[0].name}是本月最大的支出分类，占总支出的 ${analytics.ranked[0].percentage.toFixed(1)}%。`
+                : "新增支出后，这里会显示最主要的消费分类。"}
+            </p>
           </div>
         </section>
       </div>

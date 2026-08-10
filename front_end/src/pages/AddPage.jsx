@@ -8,26 +8,31 @@ import {
   ChevronRight,
   X,
 } from "lucide-react";
-import { CATEGORIES } from "../data/categories";
 import CategoryIcon from "../components/CategoryIcon";
+import { formatLocalDate } from "../data/month";
 
-export default function AddPage({ onSave, onClose, defaultDate }) {
+export default function AddPage({ categories, onSave, onClose, defaultDate, minDate, maxDate }) {
   const [txType, setTxType] = useState("expense");
   const [selectedCat, setSelectedCat] = useState(null);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [date, setDate] = useState(defaultDate || new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(defaultDate || formatLocalDate());
+  const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
-  const categories = CATEGORIES[txType];
-  const isValid = Boolean(selectedCat && amount && Number(amount) > 0);
+  const availableCategories = useMemo(
+    () => categories.filter((category) => category.type === txType),
+    [categories, txType],
+  );
+  const isValid = Boolean(selectedCat !== null && amount && Number(amount) > 0);
   const selectedCategory = useMemo(
-    () => categories.find((category) => category.id === selectedCat),
-    [categories, selectedCat],
+    () => availableCategories.find((category) => category.id === selectedCat),
+    [availableCategories, selectedCat],
   );
 
   useEffect(() => {
     const handleEscape = (event) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape" && !saving) onClose();
     };
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -36,31 +41,38 @@ export default function AddPage({ onSave, onClose, defaultDate }) {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [onClose]);
+  }, [onClose, saving]);
 
   const switchType = (type) => {
     setTxType(type);
     setSelectedCat(null);
+    setSubmitError(null);
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!isValid) return;
-    onSave({
-      id: Date.now(),
-      type: txType,
-      catId: selectedCat,
-      amount: Number(amount),
-      note: note.trim() || null,
-      date,
-    });
-    onClose();
+    if (!isValid || saving) return;
+    setSaving(true);
+    setSubmitError(null);
+    try {
+      await onSave({
+        type: txType,
+        categoryId: selectedCat,
+        amount: Number(amount),
+        note: note.trim() || null,
+        date,
+      });
+      onClose();
+    } catch (saveError) {
+      setSubmitError(saveError.message || "保存失败，请稍后重试");
+      setSaving(false);
+    }
   };
 
   return (
     <div
       className="fixed inset-0 z-[100] flex items-end justify-end bg-[#080f1e]/55 backdrop-blur-[2px] lg:items-stretch"
-      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+      onMouseDown={(event) => event.target === event.currentTarget && !saving && onClose()}
     >
       <form
         onSubmit={handleSubmit}
@@ -80,8 +92,9 @@ export default function AddPage({ onSave, onClose, defaultDate }) {
             <button
               type="button"
               onClick={onClose}
+              disabled={saving}
               aria-label="关闭"
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f5f5f2] text-[#7d7f79] transition hover:bg-[#e9eae6] hover:text-[#343431]"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f5f5f2] text-[#7d7f79] transition hover:bg-[#e9eae6] hover:text-[#343431] disabled:cursor-not-allowed disabled:opacity-40"
             >
               <X size={18} />
             </button>
@@ -126,7 +139,7 @@ export default function AddPage({ onSave, onClose, defaultDate }) {
             </div>
 
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-              {categories.map((category) => {
+              {availableCategories.map((category) => {
                 const selected = selectedCat === category.id;
                 return (
                   <button
@@ -143,7 +156,7 @@ export default function AddPage({ onSave, onClose, defaultDate }) {
                       className="flex h-10 w-10 items-center justify-center rounded-[13px] transition-transform"
                       style={{ color: category.color, background: selected ? category.color : category.bg }}
                     >
-                      <CategoryIcon id={category.id} color={selected ? "#fff" : category.color} />
+                      <CategoryIcon id={category.icon} color={selected ? "#fff" : category.color} />
                     </span>
                     <span className={`w-full truncate text-[10px] ${selected ? "font-bold text-[#464642]" : "font-medium text-[#83837d]"}`}>
                       {category.name}
@@ -153,6 +166,11 @@ export default function AddPage({ onSave, onClose, defaultDate }) {
                 );
               })}
             </div>
+            {!availableCategories.length && (
+              <div className="rounded-2xl border border-dashed border-[#d8d8d2] bg-white/60 px-4 py-8 text-center text-xs text-[#96968f]">
+                暂无可用分类，请先确认后端分类数据已初始化。
+              </div>
+            )}
           </section>
 
           <section className="mt-7 space-y-3.5">
@@ -201,6 +219,8 @@ export default function AddPage({ onSave, onClose, defaultDate }) {
                   <input
                     type="date"
                     value={date}
+                    min={minDate}
+                    max={maxDate}
                     onChange={(event) => setDate(event.target.value)}
                     className="mt-1 w-full border-0 bg-transparent text-xs font-semibold text-[#52524d] outline-none"
                   />
@@ -211,12 +231,19 @@ export default function AddPage({ onSave, onClose, defaultDate }) {
         </div>
 
         <footer className="shrink-0 border-t border-[#e7e8e3] bg-white px-5 py-4 sm:px-7 sm:py-5">
+          {submitError && (
+            <p className="mb-3 rounded-xl bg-[#fff2ef] px-3 py-2.5 text-center text-[11px] font-medium text-[#bd4f49]">
+              {submitError}
+            </p>
+          )}
           <button
             type="submit"
-            disabled={!isValid}
+            disabled={!isValid || saving}
             className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#ffc928] px-5 py-3.5 text-[13px] font-bold text-[#2c2c29] shadow-[0_10px_25px_rgba(146,103,0,0.14)] transition hover:bg-[#eeb315] disabled:cursor-not-allowed disabled:bg-[#e1e2dd] disabled:text-[#a0a099] disabled:shadow-none"
           >
-            {isValid ? (
+            {saving ? (
+              "正在保存..."
+            ) : isValid ? (
               <>
                 保存这笔{txType === "expense" ? "支出" : "收入"}
                 <ChevronRight size={16} />

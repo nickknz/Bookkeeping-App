@@ -5,38 +5,37 @@ import {
   ArrowUpRight,
   CalendarDays,
   ChevronDown,
-  CircleCheck,
   Sparkles,
   Target,
   TrendingUp,
   WalletCards,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import { PageErrorState, PageLoadingState } from "../components/DataState";
 import TransactionItem from "../components/TransactionItem";
-import { getCategoryById } from "../data/categories";
 import { formatDateLabel, getWeekday, groupTransactionsByDate } from "../data/dateUtils";
 import { money } from "../data/format";
 
-const MONTH = "2026-03";
-const MONTHLY_BUDGET = 8000;
-
 export default function HomePage() {
-  const { transactions } = useOutletContext();
+  const { transactions, month, loading, error, retry } = useOutletContext();
 
   const summary = useMemo(() => {
-    const monthTransactions = transactions.filter((transaction) => transaction.date.startsWith(MONTH));
+    const monthTransactions = transactions.filter((transaction) => transaction.date.startsWith(month.key));
     const expenseTransactions = monthTransactions.filter((transaction) => transaction.type === "expense");
     const incomeTransactions = monthTransactions.filter((transaction) => transaction.type === "income");
     const expense = expenseTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
     const income = incomeTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
 
-    const categoryTotals = expenseTransactions.reduce((result, transaction) => {
-      result[transaction.catId] = (result[transaction.catId] || 0) + transaction.amount;
-      return result;
-    }, {});
+    const categoryTotals = new Map();
+    expenseTransactions.forEach((transaction) => {
+      const current = categoryTotals.get(transaction.categoryId);
+      categoryTotals.set(transaction.categoryId, {
+        ...transaction.category,
+        amount: (current?.amount || 0) + transaction.amount,
+      });
+    });
 
-    const topCategories = Object.entries(categoryTotals)
-      .map(([id, amount]) => ({ ...getCategoryById(id), id, amount }))
+    const topCategories = [...categoryTotals.values()]
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 4);
 
@@ -48,24 +47,24 @@ export default function HomePage() {
       grouped: groupTransactionsByDate(monthTransactions),
       topCategories,
     };
-  }, [transactions]);
+  }, [month.key, transactions]);
 
-  const budgetRate = Math.min((summary.expense / MONTHLY_BUDGET) * 100, 100);
-  const remainingBudget = Math.max(MONTHLY_BUDGET - summary.expense, 0);
+  if (loading) return <PageLoadingState />;
+  if (error) return <PageErrorState message={error} onRetry={retry} />;
 
   return (
     <div className="page-enter mx-auto max-w-[1460px] px-4 pt-[92px] sm:px-6 lg:px-9 lg:py-9 xl:px-12">
       <PageHeader
         eyebrow="Overview"
         title="下午好，欢迎回来"
-        description="这是你 3 月的财务概览。保持记录，资金流向会越来越清晰。"
+        description={`这是你 ${month.month} 月的财务概览。保持记录，资金流向会越来越清晰。`}
       >
         <button
           type="button"
           className="flex h-10 items-center gap-2 rounded-xl border border-[#e5e6e1] bg-white px-3.5 text-xs font-semibold text-[#70706a] shadow-sm transition hover:border-[#cfd1ca]"
         >
           <CalendarDays size={15} className="text-[#b37800]" />
-          2026 年 3 月
+          {month.label}
           <ChevronDown size={14} className="text-[#9d9d96]" />
         </button>
       </PageHeader>
@@ -116,36 +115,31 @@ export default function HomePage() {
               <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#a0a099]">Monthly budget</div>
               <h2 className="mt-1.5 text-lg font-bold tracking-[-0.02em] text-[#2c2c29]">月度预算</h2>
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff8db] text-[#a97000]">
-              <Target size={19} />
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-[#f5f5f2] px-3 py-1.5 text-[10px] font-bold text-[#85857e]">未设置</span>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff8db] text-[#a97000]">
+                <Target size={19} />
+              </div>
             </div>
           </div>
 
-          <div className="mt-7 flex flex-1 items-center gap-7">
-            <div
-              className="relative flex h-[116px] w-[116px] shrink-0 items-center justify-center rounded-full"
-              style={{ background: `conic-gradient(#e6a900 ${budgetRate * 3.6}deg, #ecece8 0deg)` }}
-            >
-              <div className="flex h-[90px] w-[90px] flex-col items-center justify-center rounded-full bg-white">
-                <span className="numeric text-xl font-bold text-[#2c2c29]">{budgetRate.toFixed(0)}%</span>
-                <span className="mt-0.5 text-[10px] text-[#9a9a93]">已使用</span>
+          <div className="mt-6 flex flex-1 flex-col justify-center rounded-[20px] bg-[#fafaf8] p-5">
+            <p className="text-xs leading-5 text-[#898982]">预算功能尚未设置，以下仅展示当前月份的真实交易汇总。</p>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-white p-4">
+                <div className="text-[10px] font-semibold text-[#9a9a93]">本月收入</div>
+                <div className="numeric mt-2 text-lg font-bold text-[#15936a]">¥{money(summary.income)}</div>
               </div>
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-xs text-[#92928c]">本月剩余</div>
-              <div className="numeric mt-1 text-2xl font-bold text-[#2c2c29]">¥{money(remainingBudget)}</div>
-              <div className="mt-4 flex items-center gap-2 text-[11px] text-[#92928c]">
-                <CircleCheck size={14} className="text-[#b37800]" />
-                日均可用 ¥{money(remainingBudget / 12)}
+              <div className="rounded-2xl bg-white p-4">
+                <div className="text-[10px] font-semibold text-[#9a9a93]">本月支出</div>
+                <div className="numeric mt-2 text-lg font-bold text-[#343431]">¥{money(summary.expense)}</div>
               </div>
             </div>
           </div>
 
           <div className="mt-5 flex items-center justify-between border-t border-[#ecece8] pt-4 text-[11px]">
-            <span className="text-[#9a9a93]">预算总额 ¥{money(MONTHLY_BUDGET)}</span>
-            <button type="button" className="flex items-center gap-1 font-bold text-[#a97000] hover:text-[#946400]">
-              调整预算 <ArrowUpRight size={13} />
-            </button>
+            <span className="text-[#9a9a93]">未使用演示预算数据</span>
+            <span className="font-bold text-[#a97000]">预算待设置</span>
           </div>
         </div>
       </section>
@@ -163,6 +157,15 @@ export default function HomePage() {
           </div>
 
           <div>
+            {!summary.grouped.length && (
+              <div className="px-6 py-16 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fff8dc] text-[#a97000]">
+                  <WalletCards size={20} />
+                </div>
+                <h3 className="mt-4 text-sm font-bold text-[#474742]">这个月还没有记录</h3>
+                <p className="mt-1.5 text-[11px] text-[#9a9a93]">点击“记一笔”，开始建立你的真实账本。</p>
+              </div>
+            )}
             {summary.grouped.map(([date, dayTransactions], groupIndex) => {
               const dayExpense = dayTransactions.filter((item) => item.type === "expense").reduce((sum, item) => sum + item.amount, 0);
               const dayIncome = dayTransactions.filter((item) => item.type === "income").reduce((sum, item) => sum + item.amount, 0);
@@ -202,6 +205,11 @@ export default function HomePage() {
               </div>
             </div>
             <div className="space-y-5">
+              {!summary.topCategories.length && (
+                <p className="rounded-2xl bg-[#fafaf8] px-4 py-8 text-center text-[11px] text-[#9a9a93]">
+                  记录支出后，这里会显示分类占比。
+                </p>
+              )}
               {summary.topCategories.map((category) => {
                 const percentage = summary.expense > 0 ? (category.amount / summary.expense) * 100 : 0;
                 return (
@@ -230,7 +238,9 @@ export default function HomePage() {
               </div>
               <h3 className="mt-4 text-[15px] font-bold text-[#5c4800]">本月财务小结</h3>
               <p className="mt-2 text-xs leading-6 text-[#706b5d]">
-                住房是当前最大支出，餐饮控制得不错。照这个节奏，本月预计还能结余约 ¥{money(summary.balance)}。
+                {summary.topCategories.length
+                  ? `${summary.topCategories[0].name}是当前最大支出。照这个节奏，本月预计还能结余约 ¥${money(summary.balance)}。`
+                  : "完成第一笔记账后，这里会根据真实数据生成本月小结。"}
               </p>
               <button type="button" className="mt-4 flex items-center gap-1.5 text-xs font-bold text-[#946400]">
                 查看完整建议 <ArrowUpRight size={13} />
