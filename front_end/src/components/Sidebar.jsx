@@ -7,11 +7,13 @@ import {
   Home,
   Plus,
   Sparkles,
+  Target,
   WalletCards,
 } from "lucide-react";
 
 const TABS = [
   { path: "/", label: "总览", icon: Home },
+  { path: "/budget", label: "月度预算", mobileLabel: "预算", icon: Target },
   { path: "/chart", label: "数据分析", mobileLabel: "分析", icon: BarChart3 },
   { path: "/ledger", label: "我的账本", mobileLabel: "账本", icon: BookOpenText },
   { path: "/me", label: "个人中心", mobileLabel: "我的", icon: CircleUserRound },
@@ -120,7 +122,7 @@ export default function Sidebar({ onAddClick }) {
       </header>
 
       <nav
-        className="fixed inset-x-3 bottom-3 z-50 grid h-[66px] grid-cols-4 items-center rounded-[20px] border border-white/70 bg-white/95 px-2 shadow-[0_16px_45px_rgba(76,63,24,0.16)] backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-3 bottom-3 z-50 grid h-[66px] grid-cols-5 items-center rounded-[20px] border border-white/70 bg-white/95 px-2 shadow-[0_16px_45px_rgba(76,63,24,0.16)] backdrop-blur-xl lg:hidden"
         aria-label="移动端导航"
       >
         {TABS.map((tab) => {

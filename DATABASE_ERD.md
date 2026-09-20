@@ -2,7 +2,8 @@
 
 > 本文档展示当前数据库实体关系图（Entity-Relationship Diagram，ERD），以
 > [`V1__init_schema.sql`](./bookkeeping-api/src/main/resources/db/V1__init_schema.sql)
-> 和 [`V2__seed_default_categories.sql`](./bookkeeping-api/src/main/resources/db/V2__seed_default_categories.sql)
+>、[`V2__seed_default_categories.sql`](./bookkeeping-api/src/main/resources/db/V2__seed_default_categories.sql)
+> 和 [`V3__add_budget_value_checks.sql`](./bookkeeping-api/src/main/resources/db/V3__add_budget_value_checks.sql)
 > 为准。
 
 ## 完整 ER 图
@@ -36,7 +37,7 @@ User      1 ───── 0..N Budget
 - `users.email` 全局唯一。
 - `category.code` 全局唯一，`type` 只能是 `income` 或 `expense`。
 - `transactions.amount` 必须大于零，交易必须同时关联 User 和 Category。
-- `budget` 使用 `UNIQUE (user_id, month)` 保证每个用户每月最多一条预算。
+- `budget` 使用 `UNIQUE (user_id, month)` 保证每个用户每月最多一条预算；`month` 必须是当月第一天，`limit_amount` 必须大于零。
 - Category 与 User、Budget 都没有直接关系。
 
 ## 未来自定义分类扩展

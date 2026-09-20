@@ -1,6 +1,6 @@
 # 小豆记账前端
 
-基于 React、Vite 和 Tailwind CSS 的记账应用前端，已接入 Spring Boot 分类与交易接口。
+基于 React、Vite 和 Tailwind CSS 的记账应用前端，已接入 Spring Boot 分类、交易与预算接口。
 
 ## 快速开始
 
@@ -27,15 +27,17 @@ src/
 │   └── TransactionItem.jsx 单条交易记录
 ├── pages/                页面组件
 │   ├── HomePage.jsx        首页（交易流水）
+│   ├── BudgetPage.jsx      月度预算管理页
 │   ├── ChartPage.jsx       图表分析页
 │   ├── LedgerPage.jsx      账本管理页
 │   ├── ProfilePage.jsx     个人中心页
 │   └── AddPage.jsx         记账页（全屏弹出）
 ├── data/                 数据层
 │   ├── categories.js       分类视觉配置
+│   ├── budget.js           预算进度计算
 │   └── dateUtils.js        日期工具函数
 ├── api/
-│   └── client.js           分类与交易 API 客户端
+│   └── client.js           分类、交易与预算 API 客户端
 ├── App.jsx               主入口
 ├── App.css               全局样式
 └── main.jsx              挂载点
@@ -54,5 +56,6 @@ src/
 - [x] 接入分类与交易 API
 - [x] 首页和图表使用真实交易数据
 - [x] 添加 Tailwind CSS、Recharts 和路由
+- [x] 实现月度预算 CRUD 与进度展示
 - [ ] 接入用户认证
-- [ ] 实现账本与预算功能
+- [ ] 完善账本管理功能

@@ -1,10 +1,12 @@
 import { useMemo } from "react";
-import { useOutletContext } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import {
+  AlertCircle,
   ArrowRight,
   ArrowUpRight,
   CalendarDays,
   ChevronDown,
+  RefreshCw,
   Sparkles,
   Target,
   TrendingUp,
@@ -13,41 +15,63 @@ import {
 import PageHeader from "../components/PageHeader";
 import { PageErrorState, PageLoadingState } from "../components/DataState";
 import TransactionItem from "../components/TransactionItem";
+import { getBudgetOverview } from "../data/budget";
 import { formatDateLabel, getWeekday, groupTransactionsByDate } from "../data/dateUtils";
-import { money } from "../data/format";
+import { fromCents, money, toCents } from "../data/format";
 
 export default function HomePage() {
-  const { transactions, month, loading, error, retry } = useOutletContext();
+  const {
+    transactions,
+    budget,
+    budgetError,
+    budgetLoading,
+    month,
+    loading,
+    error,
+    retry,
+    retryBudget,
+  } = useOutletContext();
 
   const summary = useMemo(() => {
     const monthTransactions = transactions.filter((transaction) => transaction.date.startsWith(month.key));
     const expenseTransactions = monthTransactions.filter((transaction) => transaction.type === "expense");
     const incomeTransactions = monthTransactions.filter((transaction) => transaction.type === "income");
-    const expense = expenseTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
-    const income = incomeTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+    const expenseCents = expenseTransactions.reduce((sum, transaction) => sum + toCents(transaction.amount), 0);
+    const incomeCents = incomeTransactions.reduce((sum, transaction) => sum + toCents(transaction.amount), 0);
 
     const categoryTotals = new Map();
     expenseTransactions.forEach((transaction) => {
       const current = categoryTotals.get(transaction.categoryId);
       categoryTotals.set(transaction.categoryId, {
         ...transaction.category,
-        amount: (current?.amount || 0) + transaction.amount,
+        amountCents: (current?.amountCents || 0) + toCents(transaction.amount),
       });
     });
 
     const topCategories = [...categoryTotals.values()]
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 4);
+      .sort((a, b) => b.amountCents - a.amountCents)
+      .slice(0, 4)
+      .map((category) => ({
+        ...category,
+        amount: fromCents(category.amountCents),
+      }));
 
     return {
       monthTransactions,
-      expense,
-      income,
-      balance: income - expense,
+      expenseCents,
+      incomeCents,
+      expense: fromCents(expenseCents),
+      income: fromCents(incomeCents),
+      balance: fromCents(incomeCents - expenseCents),
       grouped: groupTransactionsByDate(monthTransactions),
       topCategories,
     };
   }, [month.key, transactions]);
+
+  const budgetOverview = useMemo(
+    () => getBudgetOverview(budget, summary.expenseCents),
+    [budget, summary.expenseCents],
+  );
 
   if (loading) return <PageLoadingState />;
   if (error) return <PageErrorState message={error} onRetry={retry} />;
@@ -116,31 +140,137 @@ export default function HomePage() {
               <h2 className="mt-1.5 text-lg font-bold tracking-[-0.02em] text-[#2c2c29]">月度预算</h2>
             </div>
             <div className="flex items-center gap-2">
-              <span className="rounded-full bg-[#f5f5f2] px-3 py-1.5 text-[10px] font-bold text-[#85857e]">未设置</span>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff8db] text-[#a97000]">
+              <span
+                className={`rounded-full px-3 py-1.5 text-[10px] font-bold ${
+                  budgetLoading
+                    ? "bg-[#f5f5f2] text-[#85857e]"
+                    : budgetError
+                    ? "bg-[#fff0ed] text-[#c9573d]"
+                    : budgetOverview?.isOverBudget
+                    ? "bg-[#fff0ed] text-[#c9573d]"
+                    : budgetOverview
+                      ? "bg-[#fff8db] text-[#a97000]"
+                      : "bg-[#f5f5f2] text-[#85857e]"
+                }`}
+              >
+                {budgetLoading ? "读取中" : budgetError ? "读取失败" : budgetOverview?.status || "未设置"}
+              </span>
+              <Link
+                to="/budget"
+                aria-label="管理月度预算"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff8db] text-[#a97000] transition hover:bg-[#ffefac]"
+              >
                 <Target size={19} />
-              </div>
+              </Link>
             </div>
           </div>
 
-          <div className="mt-6 flex flex-1 flex-col justify-center rounded-[20px] bg-[#fafaf8] p-5">
-            <p className="text-xs leading-5 text-[#898982]">预算功能尚未设置，以下仅展示当前月份的真实交易汇总。</p>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-white p-4">
-                <div className="text-[10px] font-semibold text-[#9a9a93]">本月收入</div>
-                <div className="numeric mt-2 text-lg font-bold text-[#15936a]">¥{money(summary.income)}</div>
+          {budgetLoading ? (
+            <div className="mt-6 flex flex-1 animate-pulse flex-col justify-center rounded-[20px] bg-[#fafaf8] p-5" role="status">
+              <div className="h-3 w-24 rounded-full bg-[#e4e5df]" />
+              <div className="mt-3 h-8 w-40 rounded-xl bg-[#dedfd9]" />
+              <div className="mt-5 h-2 rounded-full bg-[#e8e9e4]" />
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <div className="h-16 rounded-2xl bg-white" />
+                <div className="h-16 rounded-2xl bg-white" />
               </div>
-              <div className="rounded-2xl bg-white p-4">
-                <div className="text-[10px] font-semibold text-[#9a9a93]">本月支出</div>
-                <div className="numeric mt-2 text-lg font-bold text-[#343431]">¥{money(summary.expense)}</div>
-              </div>
+              <span className="sr-only">正在读取本月预算</span>
             </div>
-          </div>
+          ) : budgetError ? (
+            <>
+              <div className="mt-6 flex flex-1 flex-col items-center justify-center rounded-[20px] bg-[#fff8f6] p-5 text-center">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#cf5a45] shadow-sm">
+                  <AlertCircle size={18} />
+                </div>
+                <p className="mt-3 text-xs font-bold text-[#6d514a]">预算暂时无法读取</p>
+                <p className="mt-1.5 max-w-xs text-[10px] leading-5 text-[#a08078]">账本数据已正常加载，你可以单独重试预算请求。</p>
+                <button
+                  type="button"
+                  onClick={retryBudget}
+                  className="mt-4 flex items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-[11px] font-bold text-[#b6503d] shadow-sm transition hover:bg-[#fff2ee]"
+                >
+                  <RefreshCw size={13} /> 重新读取
+                </button>
+              </div>
 
-          <div className="mt-5 flex items-center justify-between border-t border-[#ecece8] pt-4 text-[11px]">
-            <span className="text-[#9a9a93]">未使用演示预算数据</span>
-            <span className="font-bold text-[#a97000]">预算待设置</span>
-          </div>
+              <div className="mt-5 flex items-center justify-between border-t border-[#ecece8] pt-4 text-[11px]">
+                <span className="truncate pr-3 text-[#9a9a93]">{budgetError}</span>
+                <Link to="/budget" className="shrink-0 font-bold text-[#a97000]">管理预算</Link>
+              </div>
+            </>
+          ) : budgetOverview ? (
+            <>
+              <div className="mt-6 flex flex-1 flex-col justify-center rounded-[20px] bg-[#fafaf8] p-5">
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <div className="text-[10px] font-semibold text-[#9a9a93]">
+                      {budgetOverview.isOverBudget ? "已超出预算" : "本月剩余"}
+                    </div>
+                    <div
+                      className={`numeric mt-1.5 text-2xl font-bold ${
+                        budgetOverview.isOverBudget ? "text-[#c9573d]" : "text-[#343431]"
+                      }`}
+                    >
+                      ¥{money(Math.abs(budgetOverview.remaining))}
+                    </div>
+                  </div>
+                  <div className="numeric text-right text-[11px] font-bold text-[#777770]">
+                    已使用 {budgetOverview.percentage.toFixed(1)}%
+                  </div>
+                </div>
+
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#e9e9e4]">
+                  <div
+                    className={`h-full rounded-full transition-[width] ${
+                      budgetOverview.isOverBudget ? "bg-[#df7359]" : "bg-[#ffc928]"
+                    }`}
+                    style={{ width: `${budgetOverview.progress}%` }}
+                  />
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl bg-white p-4">
+                    <div className="text-[10px] font-semibold text-[#9a9a93]">预算额度</div>
+                    <div className="numeric mt-2 text-lg font-bold text-[#343431]">¥{money(budgetOverview.limit)}</div>
+                  </div>
+                  <div className="rounded-2xl bg-white p-4">
+                    <div className="text-[10px] font-semibold text-[#9a9a93]">本月支出</div>
+                    <div className="numeric mt-2 text-lg font-bold text-[#343431]">¥{money(summary.expense)}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-5 flex items-center justify-between border-t border-[#ecece8] pt-4 text-[11px]">
+                <span className="text-[#9a9a93]">{month.label} 支出预算</span>
+                <span className={`font-bold ${budgetOverview.isOverBudget ? "text-[#c9573d]" : "text-[#a97000]"}`}>
+                  {budgetOverview.status}
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mt-6 flex flex-1 flex-col justify-center rounded-[20px] bg-[#fafaf8] p-5">
+                <p className="text-xs leading-5 text-[#898982]">预算功能尚未设置，以下仅展示当前月份的真实交易汇总。</p>
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl bg-white p-4">
+                    <div className="text-[10px] font-semibold text-[#9a9a93]">本月收入</div>
+                    <div className="numeric mt-2 text-lg font-bold text-[#15936a]">¥{money(summary.income)}</div>
+                  </div>
+                  <div className="rounded-2xl bg-white p-4">
+                    <div className="text-[10px] font-semibold text-[#9a9a93]">本月支出</div>
+                    <div className="numeric mt-2 text-lg font-bold text-[#343431]">¥{money(summary.expense)}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-5 flex items-center justify-between border-t border-[#ecece8] pt-4 text-[11px]">
+                <span className="text-[#9a9a93]">未使用演示预算数据</span>
+                <Link to="/budget" className="flex items-center gap-1 font-bold text-[#a97000]">
+                  去设置 <ArrowRight size={12} />
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </section>
 
@@ -167,8 +297,12 @@ export default function HomePage() {
               </div>
             )}
             {summary.grouped.map(([date, dayTransactions], groupIndex) => {
-              const dayExpense = dayTransactions.filter((item) => item.type === "expense").reduce((sum, item) => sum + item.amount, 0);
-              const dayIncome = dayTransactions.filter((item) => item.type === "income").reduce((sum, item) => sum + item.amount, 0);
+              const dayExpenseCents = dayTransactions
+                .filter((item) => item.type === "expense")
+                .reduce((sum, item) => sum + toCents(item.amount), 0);
+              const dayIncomeCents = dayTransactions
+                .filter((item) => item.type === "income")
+                .reduce((sum, item) => sum + toCents(item.amount), 0);
               return (
                 <div key={date} className={groupIndex > 0 ? "border-t-[5px] border-[#f7f7f5]" : ""}>
                   <div className="flex items-center justify-between bg-[#fbfbf9] px-5 py-3 sm:px-6">
@@ -176,8 +310,8 @@ export default function HomePage() {
                       {formatDateLabel(date)} <span className="ml-1 font-medium text-[#a8a8a1]">{getWeekday(date)}</span>
                     </div>
                     <div className="numeric flex gap-3 text-[10px] text-[#9a9a93]">
-                      {dayExpense > 0 && <span>支出 ¥{money(dayExpense)}</span>}
-                      {dayIncome > 0 && <span className="text-[#15936a]">收入 ¥{money(dayIncome)}</span>}
+                      {dayExpenseCents > 0 && <span>支出 ¥{money(fromCents(dayExpenseCents))}</span>}
+                      {dayIncomeCents > 0 && <span className="text-[#15936a]">收入 ¥{money(fromCents(dayIncomeCents))}</span>}
                     </div>
                   </div>
                   {dayTransactions.map((transaction, index) => (
@@ -211,7 +345,7 @@ export default function HomePage() {
                 </p>
               )}
               {summary.topCategories.map((category) => {
-                const percentage = summary.expense > 0 ? (category.amount / summary.expense) * 100 : 0;
+                const percentage = summary.expenseCents > 0 ? (category.amountCents / summary.expenseCents) * 100 : 0;
                 return (
                   <div key={category.id}>
                     <div className="mb-2 flex items-center justify-between text-xs">

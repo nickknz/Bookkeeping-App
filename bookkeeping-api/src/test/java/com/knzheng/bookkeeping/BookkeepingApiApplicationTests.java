@@ -45,7 +45,8 @@ class BookkeepingApiApplicationTests {
     private JdbcTemplate jdbcTemplate;
 
     @BeforeEach
-    void cleanTransactions() {
+    void cleanData() {
+        jdbcTemplate.update("DELETE FROM budget");
         jdbcTemplate.update("DELETE FROM transactions");
         jdbcTemplate.update(
                 "DELETE FROM users WHERE id <> ?",

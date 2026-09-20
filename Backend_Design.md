@@ -102,7 +102,7 @@ CREATE INDEX idx_transactions_user_date ON transactions(user_id, date DESC);
 | id | UUID | PK | 主键 |
 | user_id | UUID | FK → User, NOT NULL | 所属用户 |
 | month | DATE | NOT NULL | 每月1号，如 `2026-03-01` |
-| limit_amount | DECIMAL(12,2) | NOT NULL | 预算上限 |
+| limit_amount | DECIMAL(12,2) | NOT NULL, > 0 | 预算上限 |
 | created_at | TIMESTAMP | NOT NULL | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL | 更新时间 |
 
@@ -113,7 +113,7 @@ CREATE INDEX idx_transactions_user_date ON transactions(user_id, date DESC);
 ## 2.3 数据库迁移策略
 
 - 数据库结构以 [`bookkeeping-api/src/main/resources/db/`](./bookkeeping-api/src/main/resources/db/) 下的迁移脚本为准，文档不复制完整建表 SQL。
-- `V1__init_schema.sql` 创建当前已落地的表结构、约束和索引，`V2__seed_default_categories.sql` 只初始化全局系统预设分类。
+- `V1__init_schema.sql` 创建基础表结构，`V2__seed_default_categories.sql` 初始化全局系统预设分类，`V3__add_budget_value_checks.sql` 保证预算月份为当月第一天且额度大于 0。
 - 已经执行或共享的迁移不得直接修改；新字段、约束和索引通过新的版本迁移逐步加入。
 - 本节字段表描述目标一期模型；实现状态与目标模型的差异必须在迁移任务中明确记录。
 
@@ -195,10 +195,12 @@ User      1 ───── 0..N Budget
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/budgets` | 获取当月月度预算 |
-| POST | `/api/budgets` | 设置月度预算 |
-| PUT | `/api/budgets/{id}` | 修改月度预算 |
+| GET | `/api/budgets?month={yyyy-MM-01}` | 获取指定月份预算；省略 `month` 时获取当月预算，未设置时 `data` 为 `null` |
+| POST | `/api/budgets` | 创建月度预算；同一用户同月重复创建返回 `409` |
+| PUT | `/api/budgets/{id}` | 修改月度预算额度 |
 | DELETE | `/api/budgets/{id}` | 删除月度预算 |
+
+`month` 统一使用当月第一天，`limitAmount` 必须大于 0。预算是用户私有资源，更新和删除均同时按预算 ID 与当前用户 ID 限定。
 
 ---
 

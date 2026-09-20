@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./components/MainLayout";
 
 const HomePage = lazy(() => import("./pages/HomePage"));
+const BudgetPage = lazy(() => import("./pages/BudgetPage"));
 const ChartPage = lazy(() => import("./pages/ChartPage"));
 const LedgerPage = lazy(() => import("./pages/LedgerPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
@@ -30,6 +31,7 @@ export default function App() {
     <Routes>
       <Route element={<MainLayout />}>
         <Route path="/" element={<LazyPage><HomePage /></LazyPage>} />
+        <Route path="/budget" element={<LazyPage><BudgetPage /></LazyPage>} />
         <Route path="/chart" element={<LazyPage><ChartPage /></LazyPage>} />
         <Route path="/ledger" element={<LazyPage><LedgerPage /></LazyPage>} />
         <Route path="/me" element={<LazyPage><ProfilePage /></LazyPage>} />

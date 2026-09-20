@@ -30,9 +30,44 @@ function mapTransaction(transaction) {
   };
 }
 
+function mapBudget(budget) {
+  if (!budget) return null;
+
+  return {
+    ...budget,
+    limitAmount: Number(budget.limitAmount),
+  };
+}
+
 export async function getCategories(signal) {
   const categories = await request("/api/categories", { signal });
   return categories.map(withCategoryVisual);
+}
+
+export async function getBudget(month, signal) {
+  const query = new URLSearchParams({ month });
+  const budget = await request(`/api/budgets?${query}`, { signal });
+  return mapBudget(budget);
+}
+
+export async function createBudget(budget) {
+  const created = await request("/api/budgets", {
+    method: "POST",
+    body: JSON.stringify(budget),
+  });
+  return mapBudget(created);
+}
+
+export async function updateBudget(id, budget) {
+  const updated = await request(`/api/budgets/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(budget),
+  });
+  return mapBudget(updated);
+}
+
+export function deleteBudget(id) {
+  return request(`/api/budgets/${id}`, { method: "DELETE" });
 }
 
 export async function getTransactions({ startDate, endDate, signal }) {
