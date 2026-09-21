@@ -143,9 +143,11 @@ export default function BudgetPage() {
                   </div>
                 </div>
                 <span className={`rounded-full border px-3 py-1.5 text-[11px] font-bold ${
-                  overview.isOverBudget
+                  overview.tone === "danger"
                     ? "border-[#8e311e]/10 bg-[#fff0ed] text-[#b84731]"
-                    : "border-black/5 bg-white/45 text-[#665000]"
+                    : overview.tone === "warning"
+                      ? "border-[#8a6800]/10 bg-[#fff8db] text-[#846100]"
+                      : "border-[#157c59]/10 bg-[#e8f8ed] text-[#157c59]"
                 }`}>
                   {overview.status}
                 </span>

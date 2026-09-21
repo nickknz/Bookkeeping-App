@@ -11,12 +11,23 @@ import {
 import CategoryIcon from "../components/CategoryIcon";
 import { formatLocalDate } from "../data/month";
 
-export default function AddPage({ categories, onSave, onClose, defaultDate, minDate, maxDate }) {
-  const [txType, setTxType] = useState("expense");
-  const [selectedCat, setSelectedCat] = useState(null);
-  const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
-  const [date, setDate] = useState(defaultDate || formatLocalDate());
+export default function AddPage({
+  categories,
+  transaction = null,
+  onSave,
+  onClose,
+  defaultDate,
+  minDate,
+  maxDate,
+}) {
+  const isEditing = Boolean(transaction);
+  const [txType, setTxType] = useState(transaction?.type || "expense");
+  const [selectedCat, setSelectedCat] = useState(
+    transaction?.categoryId ?? transaction?.category?.id ?? null,
+  );
+  const [amount, setAmount] = useState(transaction ? String(transaction.amount) : "");
+  const [note, setNote] = useState(transaction?.note || "");
+  const [date, setDate] = useState(transaction?.date || defaultDate || formatLocalDate());
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
@@ -44,6 +55,7 @@ export default function AddPage({ categories, onSave, onClose, defaultDate, minD
   }, [onClose, saving]);
 
   const switchType = (type) => {
+    if (type === txType) return;
     setTxType(type);
     setSelectedCat(null);
     setSubmitError(null);
@@ -64,7 +76,7 @@ export default function AddPage({ categories, onSave, onClose, defaultDate, minD
       });
       onClose();
     } catch (saveError) {
-      setSubmitError(saveError.message || "保存失败，请稍后重试");
+      setSubmitError(saveError instanceof Error ? saveError.message : "保存失败，请稍后重试");
       setSaving(false);
     }
   };
@@ -78,16 +90,22 @@ export default function AddPage({ categories, onSave, onClose, defaultDate, minD
         onSubmit={handleSubmit}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="add-transaction-title"
+        aria-labelledby="transaction-editor-title"
         className="flex h-[92svh] w-full max-w-[580px] flex-col overflow-hidden rounded-t-[28px] bg-[#f7f7f5] shadow-[-24px_0_65px_rgba(8,15,30,0.2)] lg:h-full lg:rounded-none"
       >
         <header className="shrink-0 border-b border-[#e9eae6] bg-white px-5 pb-5 pt-4 sm:px-7 lg:pt-7">
           <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#ddded8] lg:hidden" />
           <div className="flex items-start justify-between">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#b37800]">New transaction</div>
-              <h2 id="add-transaction-title" className="mt-1.5 text-[22px] font-bold tracking-[-0.03em] text-[#2c2c29]">记一笔</h2>
-              <p className="mt-1 text-[11px] text-[#999992]">记录此刻，让每一笔钱都有迹可循。</p>
+              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#b37800]">
+                {isEditing ? "Edit transaction" : "New transaction"}
+              </div>
+              <h2 id="transaction-editor-title" className="mt-1.5 text-[22px] font-bold tracking-[-0.03em] text-[#2c2c29]">
+                {isEditing ? "编辑明细" : "记一笔"}
+              </h2>
+              <p className="mt-1 text-[11px] text-[#999992]">
+                {isEditing ? "修改后，月度汇总会同步更新。" : "记录此刻，让每一笔钱都有迹可循。"}
+              </p>
             </div>
             <button
               type="button"
@@ -203,6 +221,7 @@ export default function AddPage({ categories, onSave, onClose, defaultDate, minD
                   <input
                     type="text"
                     value={note}
+                    maxLength={500}
                     onChange={(event) => setNote(event.target.value)}
                     placeholder="添加备注"
                     className="mt-1 w-full border-0 bg-transparent text-xs font-semibold text-[#52524d] outline-none placeholder:font-medium placeholder:text-[#c0c0b9]"
@@ -232,7 +251,7 @@ export default function AddPage({ categories, onSave, onClose, defaultDate, minD
 
         <footer className="shrink-0 border-t border-[#e7e8e3] bg-white px-5 py-4 sm:px-7 sm:py-5">
           {submitError && (
-            <p className="mb-3 rounded-xl bg-[#fff2ef] px-3 py-2.5 text-center text-[11px] font-medium text-[#bd4f49]">
+            <p role="alert" className="mb-3 rounded-xl bg-[#fff2ef] px-3 py-2.5 text-center text-[11px] font-medium text-[#bd4f49]">
               {submitError}
             </p>
           )}
@@ -242,10 +261,10 @@ export default function AddPage({ categories, onSave, onClose, defaultDate, minD
             className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#ffc928] px-5 py-3.5 text-[13px] font-bold text-[#2c2c29] shadow-[0_10px_25px_rgba(146,103,0,0.14)] transition hover:bg-[#eeb315] disabled:cursor-not-allowed disabled:bg-[#e1e2dd] disabled:text-[#a0a099] disabled:shadow-none"
           >
             {saving ? (
-              "正在保存..."
+              isEditing ? "正在更新..." : "正在保存..."
             ) : isValid ? (
               <>
-                保存这笔{txType === "expense" ? "支出" : "收入"}
+                {isEditing ? "保存修改" : `保存这笔${txType === "expense" ? "支出" : "收入"}`}
                 <ChevronRight size={16} />
               </>
             ) : (

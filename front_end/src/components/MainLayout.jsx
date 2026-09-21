@@ -6,10 +6,12 @@ import {
   createBudget as createBudgetRequest,
   createTransaction,
   deleteBudget as deleteBudgetRequest,
+  deleteTransaction as deleteTransactionRequest,
   getBudget,
   getCategories,
   getTransactions,
   updateBudget as updateBudgetRequest,
+  updateTransaction as updateTransactionRequest,
 } from "../api/client";
 import { formatLocalDate, getCurrentMonth } from "../data/month";
 
@@ -25,6 +27,7 @@ export default function MainLayout() {
   const [reloadVersion, setReloadVersion] = useState(0);
   const [budgetReloadVersion, setBudgetReloadVersion] = useState(0);
   const [showAddPage, setShowAddPage] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -85,6 +88,32 @@ export default function MainLayout() {
     return created;
   }, []);
 
+  const handleUpdateTransaction = useCallback(async (id, transaction) => {
+    const updated = await updateTransactionRequest(id, transaction);
+    setTransactions((previous) => previous.map((item) => (item.id === id ? updated : item)));
+    return updated;
+  }, []);
+
+  const handleDeleteTransaction = useCallback(async (id) => {
+    await deleteTransactionRequest(id);
+    setTransactions((previous) => previous.filter((item) => item.id !== id));
+  }, []);
+
+  const openCreateTransaction = useCallback(() => {
+    setEditingTransaction(null);
+    setShowAddPage(true);
+  }, []);
+
+  const openEditTransaction = useCallback((transaction) => {
+    setEditingTransaction(transaction);
+    setShowAddPage(true);
+  }, []);
+
+  const closeTransactionEditor = useCallback(() => {
+    setShowAddPage(false);
+    setEditingTransaction(null);
+  }, []);
+
   const handleCreateBudget = useCallback(async (limitAmount) => {
     const created = await createBudgetRequest({
       month: month.startDate,
@@ -113,7 +142,7 @@ export default function MainLayout() {
 
   return (
     <div className="flex min-h-screen w-full bg-[#f7f7f5]">
-      <Sidebar onAddClick={() => setShowAddPage(true)} />
+      <Sidebar onAddClick={openCreateTransaction} />
       <main className="app-main min-w-0 flex-1 pb-24 lg:ml-[268px] lg:pb-0">
         <Outlet
           context={{
@@ -127,6 +156,8 @@ export default function MainLayout() {
             error,
             retry,
             retryBudget,
+            editTransaction: openEditTransaction,
+            deleteTransaction: handleDeleteTransaction,
             createBudget: handleCreateBudget,
             updateBudget: handleUpdateBudget,
             deleteBudget: handleDeleteBudget,
@@ -135,9 +166,13 @@ export default function MainLayout() {
       </main>
       {showAddPage && (
         <AddPage
+          key={editingTransaction?.id || "new-transaction"}
           categories={categories}
-          onSave={handleAddTransaction}
-          onClose={() => setShowAddPage(false)}
+          transaction={editingTransaction}
+          onSave={editingTransaction
+            ? (transaction) => handleUpdateTransaction(editingTransaction.id, transaction)
+            : handleAddTransaction}
+          onClose={closeTransactionEditor}
           defaultDate={formatLocalDate()}
           minDate={month.startDate}
           maxDate={month.endDate}

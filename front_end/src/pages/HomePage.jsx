@@ -30,6 +30,8 @@ export default function HomePage() {
     error,
     retry,
     retryBudget,
+    editTransaction,
+    deleteTransaction,
   } = useOutletContext();
 
   const summary = useMemo(() => {
@@ -144,13 +146,13 @@ export default function HomePage() {
                 className={`rounded-full px-3 py-1.5 text-[10px] font-bold ${
                   budgetLoading
                     ? "bg-[#f5f5f2] text-[#85857e]"
-                    : budgetError
-                    ? "bg-[#fff0ed] text-[#c9573d]"
-                    : budgetOverview?.isOverBudget
-                    ? "bg-[#fff0ed] text-[#c9573d]"
-                    : budgetOverview
-                      ? "bg-[#fff8db] text-[#a97000]"
-                      : "bg-[#f5f5f2] text-[#85857e]"
+                    : budgetError || budgetOverview?.tone === "danger"
+                      ? "bg-[#fff0ed] text-[#c9573d]"
+                      : budgetOverview?.tone === "warning"
+                        ? "bg-[#fff8db] text-[#a97000]"
+                        : budgetOverview
+                          ? "bg-[#e8f8ed] text-[#15936a]"
+                          : "bg-[#f5f5f2] text-[#85857e]"
                 }`}
               >
                 {budgetLoading ? "读取中" : budgetError ? "读取失败" : budgetOverview?.status || "未设置"}
@@ -242,7 +244,13 @@ export default function HomePage() {
 
               <div className="mt-5 flex items-center justify-between border-t border-[#ecece8] pt-4 text-[11px]">
                 <span className="text-[#9a9a93]">{month.label} 支出预算</span>
-                <span className={`font-bold ${budgetOverview.isOverBudget ? "text-[#c9573d]" : "text-[#a97000]"}`}>
+                <span className={`font-bold ${
+                  budgetOverview.tone === "danger"
+                    ? "text-[#c9573d]"
+                    : budgetOverview.tone === "warning"
+                      ? "text-[#a97000]"
+                      : "text-[#15936a]"
+                }`}>
                   {budgetOverview.status}
                 </span>
               </div>
@@ -319,6 +327,8 @@ export default function HomePage() {
                       key={transaction.id}
                       transaction={transaction}
                       showBorder={index < dayTransactions.length - 1}
+                      onEdit={editTransaction}
+                      onDelete={deleteTransaction}
                     />
                   ))}
                 </div>
